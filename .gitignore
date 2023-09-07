@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 # Prerequisites
 *.d
 
@@ -59,7 +59,6 @@ dkms.conf
 build/
 tags
 autograder.zip
-=======
 # Prerequisites
 *.d
 
@@ -112,4 +111,3 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
->>>>>>> 8fcc87b (Initial commit)
