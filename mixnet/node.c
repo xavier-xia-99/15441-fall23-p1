@@ -172,9 +172,6 @@ void run_node(void *const handle,
     }
 }
 
-
-
-
 void receive_STP(struct node * currNode, uint8_t i, mixnet_packet* stp_packet){
     
     mixnet_packet_stp *update = (mixnet_packet_stp *)malloc(sizeof(mixnet_packet_stp)); // Free-d

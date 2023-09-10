@@ -8,7 +8,7 @@
 #include <string.h>
 
 
-mixnet_packet* initalize_STP_packet(mixnet_address root_address,
+mixnet_packet* initialize_STP_packet(mixnet_address root_address,
                                    u_int16_t path_length,
                                    mixnet_address node_address) {
                                     
@@ -43,7 +43,7 @@ mixnet_packet* initalize_STP_packet(mixnet_address root_address,
   return stp_packet;
 }
 
-mixnet_packet* initalize_FLOOD_packet(mixnet_address root_address,
+mixnet_packet* initialize_FLOOD_packet(mixnet_address root_address,
                                    u_int16_t path_length,
                                    mixnet_address node_address) {
                                     
