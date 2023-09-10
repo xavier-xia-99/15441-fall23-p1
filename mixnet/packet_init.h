@@ -25,4 +25,6 @@
 
 mixnet_packet* initialize_STP_packet(mixnet_address root_address, u_int16_t path_length, mixnet_address node_address);
 
+mixnet_packet* initialize_FLOOD_packet(mixnet_address root_address, u_int16_t path_length, mixnet_address node_address);
+
 #endif 
