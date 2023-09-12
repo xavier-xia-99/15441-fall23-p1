@@ -31,8 +31,6 @@ struct node {
 
 };
 
-
-
 // Declare functions
 void receive_and_update(void *const handle, struct node *node);
 void send_packet(void *const handle, struct node *node, enum mixnet_packet_type_enum type, uint16_t sender_index);
@@ -73,7 +71,7 @@ void print_node(struct node *node);
 
     //send all instead of 
     else if (type == PACKET_TYPE_FLOOD){
-        printf("-------------------------------------going to be sending out FlOODS from %u--------------------\n", node->my_addr);
+        printf("-----------------going to be sending out FlOODS from %u--------------------\n", node->my_addr);
          for (int i = 0; i < node->num_neighbors; i++) {
                 // printf("Sending out FLOOD to %hn\n", node->neighbors_addy);
                 if (!node->neighbors_blocked[i] && i != sender_index){
@@ -149,6 +147,32 @@ void print_node(struct node *node) {
     printf("-----------------Printing Node Complete!------------------- \n");
 }
 
+
+char* get_packet_type(mixnet_packet *packet) {
+    switch (packet->type) {
+        case PACKET_TYPE_STP:
+        return "STP";
+        case PACKET_TYPE_FLOOD:
+        return "FLOOD";
+        case PACKET_TYPE_DATA:
+        return "DATA";
+        default :
+        return "ERROR WITH PACKET TYPE!";
+    }
+}
+
+void print_node_config(const struct mixnet_node_config config){
+    printf("---------Printing Node Config! ---------\n");
+    printf("Node Address: %d \n", config.node_addr);
+    printf("Root Hello Interval: %d \n", config.root_hello_interval_ms);
+    printf("Reelection Interval: %d \n", config.reelection_interval_ms);
+    printf("Number of Neighbors: %d \n", config.num_neighbors);
+    // printf("Neighbors: \n");
+    // for (int i = 0; i < config.num_neighbors; i++) {
+    //     printf("Neighbor Node %d: %d \n", i, config.neighbors_addrs[i]);
+    // }
+    printf("---------Printing Node Config Complete! ---------\n");
+}
 /**
  * @brief This function is entrance point into each node
  * 
@@ -163,6 +187,7 @@ void run_node(void *const handle,
     (void) config;
     (void) handle;
 
+    print_node_config(config);
     // Initialize Node
     struct node* node = malloc(sizeof(struct node));
     node->num_neighbors = config.num_neighbors;
@@ -188,14 +213,17 @@ void run_node(void *const handle,
     //receiving and updating neighbor states
 
     //can i just do this
-    send_packet(handle, node, PACKET_TYPE_STP, 0); // SEND STP 
-    printf("Sending STP for Neighbor update \n");
-    receive_and_update(handle, node);
-    printf("Set up neighbours");
-
     print_node(node);
+
+    send_packet(handle, node, PACKET_TYPE_STP, 0); // SEND STP 
+    // printf("Sending STP for Neighbor update \n");
+    // receive_and_update(handle, node);
+    // printf("Set up neighbours");
+
+    // print_node(node);
     
     clock_t start_time = clock();
+    print("Starting time: %d \n", start_time)
 
     //allocate chunk of memory
     mixnet_packet *packet_buffer =
@@ -205,56 +233,62 @@ void run_node(void *const handle,
     }
 
     while(*keep_running) {
+        uint8_t port;
+        bool recv = mixnet_recv(handle, &port, &packet_buffer);
+        // if (recv) {;
+            // }
+
         // receiving from all my neighbors
-        for (uint8_t i = 0; i < node->num_neighbors; i++) {
-                // check if i received anything
-                bool recv = mixnet_recv(handle, &i, &packet_buffer);
-                // print_packet(packet_buffer);
+        // for (uint8_t i = 0; i < node->num_neighbors; i++) {
+        if (!recv) {
+            // i'm root, and its time to send a root hello
+            clock_t curr_time = clock();
+            if (node->root_addr == node->my_addr && curr_time - start_time >= config.root_hello_interval_ms * 1000) {
+                print("Starting time: %d \n", curr_time)
 
-                // we didn't receive anything
-                if (!recv) {
-                    // i'm root, and its time to send a root hello
-                    if (node->root_addr == node->my_addr && clock() - start_time >= config.root_hello_interval_ms) {
-                        // printf("DID not receive, and I AM ROOT so sending hello!' \n");
-                        send_packet(handle, node, PACKET_TYPE_STP, 0);
-                        start_time = clock();
-                    }
+                printf("DID not receive, and I AM ROOT so sending hello!' \n");
+                send_packet(handle, node, PACKET_TYPE_STP, 0);
+                start_time = clock();
+            }
 
-                    // hey, i'm not the root, but i haven't got a root hello in a while. i'm root now!
-                    else if (node->root_addr != node->my_addr && clock() - start_time >= config.reelection_interval_ms) {
-                        // printf("DID not receive, i am NOT root but exceed REELECTION interval, so I AM ROOT!' \n");
-                        node->root_addr = node->my_addr;
-                        node->path_len = 0;
-                        node->next_hop = node->my_addr;
-                        send_packet(handle, node, PACKET_TYPE_STP, 0);
-                        start_time = clock();
-                    }
-                } 
-                // we received something. 
-                else if (recv) {
-                    // printf("RECEIVED Packet! \n");
-                    switch (packet_buffer->type) {
-                    case PACKET_TYPE_STP:
-                        printf("how many times\n");
-                        if (node->root_addr != node->my_addr) {
-                            receive_STP(node, i, packet_buffer);
-                            start_time = clock();
-                        }
-                      break;
-                    case PACKET_TYPE_FLOOD:
-                    //only send to other neighbors
-
-                      send_packet(handle, node, PACKET_TYPE_FLOOD, i);
-                      break;
-                    }
+            // hey, i'm not the root, but i haven't got a root hello in a while. i'm root now!
+            else if (node->root_addr != node->my_addr && curr_time - start_time >= config.reelection_interval_ms * 1000) {
+                printf("DID not receive, i am NOT root but exceed REELECTION interval, so I AM ROOT!' \n");
+                node->root_addr = node->my_addr;
+                node->path_len = 0;
+                node->next_hop = node->my_addr;
+                send_packet(handle, node, PACKET_TYPE_STP, 0);
+                start_time = clock();
+            }
+        } 
+        // we received something. 
+        else if (recv) {
+            printf("Received packet! @ %d \n", port);
+            printf("Packet Type : %s \n", get_packet_type(packet_buffer));
+            // printf("RECEIVED Packet! \n");
+            switch (packet_buffer->type) {
+            case PACKET_TYPE_STP:
+                printf("how many times\n");
+                if (node->root_addr != node->my_addr) {
+                    receive_STP(node, port, packet_buffer);
+                    start_time = clock();
                 }
+                break;
+            case PACKET_TYPE_FLOOD:
+            //only send to other neighbors
+                send_packet(handle, node, PACKET_TYPE_FLOOD, port);
+                break;
+            }
         }
-    }
+        }
+    printf("END OF RUN NODE \n");
+    print_node(node);
 }
 
 
+// Does not reach this function at all
 void receive_STP(struct node * currNode, uint8_t i, mixnet_packet* stp_packet){
-    printf("Received STP packet! \n");
+    printf("[Received STP packet!] \n");
     mixnet_packet_stp *update = (mixnet_packet_stp *)malloc(sizeof(mixnet_packet_stp)); // Free-d
     
     memcpy((void *)update, (void *)stp_packet->payload,
