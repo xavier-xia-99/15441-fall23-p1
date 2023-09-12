@@ -223,7 +223,7 @@ void run_node(void *const handle,
     // print_node(node);
     
     clock_t start_time = clock();
-    print("Starting time: %d \n", start_time)
+    printf("Starting time: %lu \n", start_time);
 
     //allocate chunk of memory
     mixnet_packet *packet_buffer =
@@ -244,8 +244,7 @@ void run_node(void *const handle,
             // i'm root, and its time to send a root hello
             clock_t curr_time = clock();
             if (node->root_addr == node->my_addr && curr_time - start_time >= config.root_hello_interval_ms * 1000) {
-                print("Starting time: %d \n", curr_time)
-
+                printf("Starting time: %lu \n", curr_time);
                 printf("DID not receive, and I AM ROOT so sending hello!' \n");
                 send_packet(handle, node, PACKET_TYPE_STP, 0);
                 start_time = clock();
