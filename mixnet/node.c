@@ -236,11 +236,15 @@ void run_node(void *const handle,
     if (packet_buffer == NULL) {
         exit(1);
     }
-
+    uint16_t num_user_packets = 0;
+    
     while(*keep_running) {
         uint8_t node_id = node->my_addr; 
         uint8_t port;
         bool recv = mixnet_recv(handle, &port, &packet_buffer);
+        if (port == node->num_neighbors) {
+            num_user_packets++;
+        }
         // printf("packet type: %s \n",get_packet_type(packet_buffer));
         
         // if (recv) {;
@@ -294,7 +298,7 @@ void run_node(void *const handle,
             }
         }
         }
-
+    printf("Received %d user packets @ node :%u \n", num_user_packets, node->my_addr);
     printf("\n END OF RUN NODE \n");
     print_node(node);
 }
@@ -302,7 +306,7 @@ void run_node(void *const handle,
 
 // Does not reach this function at all
 bool receive_STP(struct node * currNode, uint8_t port, mixnet_packet* stp_packet){
-    printf("[Received STP packet!] \n");
+    printf(" \n [Received STP packet!]\n");
 
     mixnet_packet_stp *update = (mixnet_packet_stp *)malloc(sizeof(mixnet_packet_stp)); // Free-d
     
@@ -368,6 +372,7 @@ bool receive_STP(struct node * currNode, uint8_t port, mixnet_packet* stp_packet
         }
     }
     free(update);
+    printf("[End of STP packet!]\n\n");
     return true;
 }
 
