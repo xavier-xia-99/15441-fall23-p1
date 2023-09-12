@@ -71,11 +71,36 @@ void receive_STP(struct node *currNode, uint8_t i, mixnet_packet *stp_packet);
                 }
         }
     }
-
-
 }
 
 
+// Print Packet Payload
+
+// WE cant print all types here, payload diff...(size wise), 
+
+// just print in init? can try 
+//the point is just print everytime we send and everytime we receive right?
+//why not we just print whetehr we send and recv first, instead of what packet contains? e
+// also can, but eventually need print pakcet i feel , print inside is okay tbh
+
+//
+//ok then we j make now 
+void print_packet(mixnet_packet *packet) {
+    //  Free-d
+    printf("------------------------------------------------------------------------");
+    printf("PACKET TYPE: %d \n", packet->type);
+
+
+    // print_STP()
+    // mixnet_packet_stp *update =
+    //     (mixnet_packet_stp *)malloc(sizeof(mixnet_packet_stp)); //
+    // memcpy((void *)update, (void *)packet->payload,
+    //        sizeof(mixnet_packet_stp));
+    // printf("Printing Packet! \n");
+    // printf("Root address: %d \n", update->root_address);
+    // printf("Path length: %d \n", update->path_length);
+    // printf("Node address: %d \n", update->node_address);
+}
 /**
  * @brief This function is entrance point into each node
  * 
@@ -135,7 +160,7 @@ void run_node(void *const handle,
         for (uint8_t i = 0; i < node->num_neighbors; i++) {
                 // check if i received anything
                 bool recv = mixnet_recv(handle, &i, &packet_buffer);
-
+                
                 // we didn't receive anything
                 if (!recv) {
                     // i'm root, and its time to send a root hello
@@ -152,7 +177,6 @@ void run_node(void *const handle,
                         send_packet(handle, node, PACKET_TYPE_STP);
                         start_time = clock();
                     }
-                
                 } 
                 // we received something. 
                 else if (recv) {
@@ -191,6 +215,7 @@ void receive_STP(struct node * currNode, uint8_t i, mixnet_packet* stp_packet){
                     currNode->path_len = update->path_length + 1;
                     currNode->next_hop = update->node_address;
                     updated = true;
+                    printf("updated root address because received lower address \n");
         }
         // Received lower_path_length
         else if (update->root_address == currNode->root_addr &&
@@ -198,6 +223,7 @@ void receive_STP(struct node * currNode, uint8_t i, mixnet_packet* stp_packet){
                     currNode->path_len = update->path_length + 1;
                     currNode->next_hop = update->node_address;
                     updated = true;
+                    printf("updated root address because better path\n");
         }
         // Received lower_address for next_hop
         else if (update->root_address == currNode->root_addr &&
@@ -205,6 +231,7 @@ void receive_STP(struct node * currNode, uint8_t i, mixnet_packet* stp_packet){
                  update->node_address < currNode->next_hop) {
                     currNode->next_hop = update->node_address;
                     updated = true;
+                    printf("updated root address cause update's node is better for next hop\n");
         }
 
         // If this update_packet was not useful, block the port
@@ -226,13 +253,10 @@ void receive_and_update(void *const handle, struct node *currNode) {
     (void)handle;
     mixnet_packet *packet =
         (mixnet_packet *)malloc(sizeof(MAX_MIXNET_PACKET_SIZE));
-
     for (uint8_t i = 0; i < currNode->num_neighbors; i++) {
-
         // Init Header
-
         if (packet == NULL) {
-                    exit(1);
+            exit(1);
         }
         bool recv = mixnet_recv(handle, &i, &packet);
         if (!recv) {
@@ -242,7 +266,6 @@ void receive_and_update(void *const handle, struct node *currNode) {
                     switch (packet->type) {
                     case PACKET_TYPE_STP:
                     receive_STP(currNode, i, packet);
-
                     // Do nothing
                     break;
                     case PACKET_TYPE_FLOOD:
