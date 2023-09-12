@@ -73,33 +73,41 @@ void receive_STP(struct node *currNode, uint8_t i, mixnet_packet *stp_packet);
     }
 }
 
+// mixnet_packet_type_t 
 
-// Print Packet Payload
-
-// WE cant print all types here, payload diff...(size wise), 
-
-// just print in init? can try 
-//the point is just print everytime we send and everytime we receive right?
-//why not we just print whetehr we send and recv first, instead of what packet contains? e
-// also can, but eventually need print pakcet i feel , print inside is okay tbh
-
-//
-//ok then we j make now 
 void print_packet(mixnet_packet *packet) {
+
     //  Free-d
-    printf("------------------------------------------------------------------------");
+    printf("-----------------------------------------------------------------");
     printf("PACKET TYPE: %d \n", packet->type);
+    printf("Payload: \n")
+    switch (packet->type) {
+    case PACKET_TYPE_FLOOD:
+        mixnet_packet_stp *update =
+            (mixnet_packet_stp *)malloc(sizeof(mixnet_packet_stp)); //
+        memcpy((void *)update, (void *)packet->payload,
+               sizeof(mixnet_packet_stp));
 
+        printf("Printing Packet! \n");
+        printf("Root address: %d \n", update->root_address);
+        printf("Path length: %d \n", update->path_length);
+        printf("Node address: %d \n", update->node_address);
 
-    // print_STP()
-    // mixnet_packet_stp *update =
-    //     (mixnet_packet_stp *)malloc(sizeof(mixnet_packet_stp)); //
-    // memcpy((void *)update, (void *)packet->payload,
-    //        sizeof(mixnet_packet_stp));
-    // printf("Printing Packet! \n");
-    // printf("Root address: %d \n", update->root_address);
-    // printf("Path length: %d \n", update->path_length);
-    // printf("Node address: %d \n", update->node_address);
+        free(update);
+        break;  
+    case PACKET_TYPE_DATA:
+        mixnet_packet_data *update =
+            (mixnet_packet_data *)malloc(sizeof(mixnet_packet_data)); //
+        memcpy((void *)data, (void *)packet->payload,
+               sizeof(mixnet_packet_data));
+        printf("Printing Packet! \n");
+        printf("Root address: %d \n", data->root_address);
+        printf("Path length: %d \n", data->path_length);
+        printf("Node address: %d \n", data->node_address);
+        printf("Data: %s \n", data->data);
+        break
+    }
+    printf("-----------------------------------------------------------------");
 }
 /**
  * @brief This function is entrance point into each node
@@ -236,7 +244,7 @@ void receive_STP(struct node * currNode, uint8_t i, mixnet_packet* stp_packet){
 
         // If this update_packet was not useful, block the port
         if (!updated) {
-                    currNode->neighbors_blocked[i] = true;
+                currNode->neighbors_blocked[i] = true;
         }
     }
     free(update);
