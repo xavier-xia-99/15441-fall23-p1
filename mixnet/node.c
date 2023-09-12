@@ -28,7 +28,12 @@ struct node {
   mixnet_address my_addr; // self addr
   mixnet_address next_hop; // Next hop
   int path_len;
+};
 
+// Considering switching to struct
+struct neighbor {
+  int16_t addr; // allowing -1 as default
+  bool blocked;
 };
 
 // Declare functions
@@ -62,12 +67,11 @@ void print_node(struct node *node);
                     printf("error sending STP packet \n");
                 }
                 else {
-                    const char* val = node->neighbors_addy[i] == -1 ? "NULL" : "NOT NULL";
-                    if (strcmp(val,"NULL")) {
-                        printf("success! STP packet sent to %u \n", node->neighbors_addy[i]);
-                    }
-                    else {
-                        printf("success! STP packet sent to NULL \n");
+                    const char* val = (node->neighbors_addy[i] == -1) ? "NULL" : "NOT NULL";
+                    if (strcmp(val, "NULL") == 0) {
+                        printf("Success! STP packet sent to NULL\n");
+                    } else {
+                        printf("Success! STP packet sent to %d\n", node->neighbors_addy[i]);
                     }
                 }
         }
@@ -77,7 +81,7 @@ void print_node(struct node *node);
 
     //send all instead of 
     else if (type == PACKET_TYPE_FLOOD){
-        printf("--------------Sending FlOODS from %u--------------------\n", node->my_addr);
+        printf("-----------Sending Flood-Packet from Node #%u---------------\n", node->my_addr);
         bool sent = false;
         for (int i = 0; i < node->num_neighbors; i++) {
                 if (!node->neighbors_blocked[i] && i != sender_index){
@@ -100,7 +104,7 @@ void print_node(struct node *node);
 
         // [MISSING] send to my user!
         if (!sent){
-            printf("Sending out FLOOD to my user! \n");
+            printf("[FLOOD ENDS] Sending out Flood to my USER! \n");
             mixnet_packet* flood_packet = initialize_FLOOD_packet(node->root_addr,node->path_len,node->my_addr);
             mixnet_send(handle, node->num_neighbors, flood_packet);
         }
@@ -123,9 +127,9 @@ void print_packet(mixnet_packet *packet) {
                 sizeof(mixnet_packet_stp));
 
             printf("Printing Packet! \n");
-            printf("Root address: %d \n", update->root_address);
-            printf("Path length: %d \n", update->path_length);
-            printf("Node address: %d \n", update->node_address);
+            printf("Root(Node) Address: %d \n", update->root_address);
+            printf("Path Length: %d \n", update->path_length);
+            printf("Sender(Node) address: %d \n", update->node_address);
 
             free(update);
         }
@@ -148,17 +152,17 @@ void print_packet(mixnet_packet *packet) {
 
 
 void print_node(struct node *node) {
-    printf("-----------------Printing Node!------------------- \n");
-    printf("Root address: %d \n", node->root_addr);
-    printf("Path length: %d \n", node->path_len);
-    printf("Node address: %d \n", node->my_addr);
-    printf("Next hop: %d \n", node->next_hop);
+    printf("-----------------Printing Node [#%d]!------------------- \n", node->my_addr);
+    printf("Root Addr: %d \n", node->root_addr);
+    printf("Path Len: %d \n", node->path_len);
+    printf("Node Addr: %d \n", node->my_addr);
+    printf("Next Hop: %d \n", node->next_hop);
     printf("Neighbors List : \n");
     for (int i = 0; i < node->num_neighbors; i++) {
         const char* value = (node->neighbors_blocked[i]) ? "Yes" : "No";
-        printf("Neighbor Node #%d , address: %d , Blocked: %s \n", i, node->neighbors_addy[i], value);
+        printf("Neighbor Index #%d | Address: %d | Blocked: %s | \n", i, node->neighbors_addy[i], value);
     }
-    printf("-----------------Printing Node Complete!------------------- \n");
+    printf("--------------Printing Node [#%d] Complete!--------------\n",node->my_addr);
 }
 
 
@@ -307,15 +311,15 @@ void run_node(void *const handle,
             }
         }
         }
-    printf("Received %d user packets @ node :%u \n", num_user_packets, node->my_addr);
-    printf("\n END OF RUN NODE \n");
+
+    printf("\n Node[#%d] Stats: \n | Received %d user packets | Node[#%d] stopped running \n", node->my_addr, num_user_packets, node->my_addr);
     print_node(node);
 }
 
 
 // Does not reach this function at all
 bool receive_STP(struct node * currNode, uint8_t port, mixnet_packet* stp_packet){
-    printf(" \n [Received STP packet!]\n");
+    printf("\n[Received STP packet!]\n");
 
     mixnet_packet_stp *update = (mixnet_packet_stp *)malloc(sizeof(mixnet_packet_stp)); // Free-d
     
@@ -335,13 +339,14 @@ bool receive_STP(struct node * currNode, uint8_t port, mixnet_packet* stp_packet
     if (currNode->neighbors_addy[port] == -1) {
         printf("Updating neighbors list because it was NULL \n");
         currNode->neighbors_addy[port] = update->node_address;
-        currNode->neighbors_blocked[port] = false;
+        currNode->neighbors_blocked[port] = false; // unblock
     } else {
         bool updated = false;
         // Received lower_root_address
         if (update->root_address < currNode->root_addr) {
-                    printf("[1] Updating.. root address because received lower address \n");
+                    printf("[1] Updating.. root[%d] address of because received lower ROOT addr \n", currNode->my_addr);
                     //print before and after for me
+
                     printf("before: root address: %u, path length: %u, next hop: %u \n", currNode->root_addr, currNode->path_len, currNode->next_hop);
                     printf("after: root address: %u, path length: %u, next hop: %u \n", update->root_address, update->path_length + 1, update->node_address);
 
@@ -355,7 +360,7 @@ bool receive_STP(struct node * currNode, uint8_t port, mixnet_packet* stp_packet
         // Received lower_path_length
         else if (update->root_address == currNode->root_addr &&
                  update->path_length + 1 < currNode->path_len) {
-                    printf("[2] Updated root address because better path\n");
+                    printf("[2] Updated root[%d] because better path\n", currNode->my_addr);
                     printf("before: root address: %u, path length: %u, next hop: %u \n", currNode->root_addr, currNode->path_len, currNode->next_hop);
                     printf("after: root address: %u, path length: %u, next hop: %u \n", update->root_address, update->path_length + 1, update->node_address);
                     
@@ -367,17 +372,21 @@ bool receive_STP(struct node * currNode, uint8_t port, mixnet_packet* stp_packet
         else if (update->root_address == currNode->root_addr &&
                  update->path_length + 1 == currNode->path_len &&
                  update->node_address < currNode->next_hop) {
-                    printf("[3] pdated root address cause update's node is better for next hop\n");
+                    printf("[3] pdated root[%d] cause update's node is better for next hop\n", currNode->my_addr);
                     printf("before: root address: %u, path length: %u, next hop: %u \n", currNode->root_addr, currNode->path_len, currNode->next_hop);
                     printf("after: root address: %u, path length: %u, next hop: %u \n", update->root_address, update->path_length + 1, update->node_address);
 
                     currNode->next_hop = update->node_address;
                     updated = true;
         }
-        // If this update_packet was not useful, block the port
+
+        // If the update_packet from this port was not useful, BLOCK it
         if (!updated) {
-                printf("Not updating, blocking port \n");
+                printf("Not updating, Blocking relative port \n");
                 currNode->neighbors_blocked[port] = true;
+        } 
+        else { // updated, unblock
+            currNode->neighbors_blocked[port] = false;
         }
     }
     free(update);
