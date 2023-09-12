@@ -78,14 +78,16 @@ void print_node(struct node *node);
     //send all instead of 
     else if (type == PACKET_TYPE_FLOOD){
         printf("--------------Sending FlOODS from %u--------------------\n", node->my_addr);
-         for (int i = 0; i < node->num_neighbors; i++) {
-                if (!node->neighbors_blocked[i] && node->neighbors_addy[i] != sender_index){
-                    printf("Sending out FLOOD to %u \n", node->neighbors_addy[i]);
-                    mixnet_packet* flood_packet = initialize_FLOOD_packet(node->root_addr,node->path_len,node -> my_addr);
+        bool sent = false;
+        for (int i = 0; i < node->num_neighbors; i++) {
+                if (!node->neighbors_blocked[i] && i != sender_index){
+                    printf("Sending out FLOOD to %u \n", i);
+                    mixnet_packet* flood_packet = initialize_FLOOD_packet(node->root_addr,node->path_len,node->my_addr);
                     // print_packet(flood_packet);
                     
-                    print_packet(flood_packet);
+                    // print_packet(flood_packet);
                     mixnet_send(handle, i, flood_packet); //TODO error_handling
+                    sent = true;
                     // bool sent = 
                     // if (!sent) {
                     //   printf("Error sending FlOOD packet \n");
@@ -94,6 +96,13 @@ void print_node(struct node *node);
                     // printf("success! FlOOD packet sent to %hn\n", node->neighbors_addy);
                     //  }
                 }
+        }
+
+        // [MISSING] send to my user!
+        if (!sent){
+            printf("Sending out FLOOD to my user! \n");
+            mixnet_packet* flood_packet = initialize_FLOOD_packet(node->root_addr,node->path_len,node->my_addr);
+            mixnet_send(handle, node->num_neighbors, flood_packet);
         }
             // printf("-------------------------------------ending FlOODS sending from %u--------------------\n", node->my_addr);
     }
@@ -237,7 +246,7 @@ void run_node(void *const handle,
         exit(1);
     }
     uint16_t num_user_packets = 0;
-    
+
     while(*keep_running) {
         uint8_t node_id = node->my_addr; 
         uint8_t port;
