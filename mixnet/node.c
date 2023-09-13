@@ -38,7 +38,7 @@ struct neighbor {
 
 // Declare functions
 void receive_and_update(void *const handle, struct node *node);
-void send_packet(void *const handle, struct node *node, enum mixnet_packet_type_enum type, uint16_t sender_index);
+void send_packet(void *const handle, struct node *node, enum mixnet_packet_type_enum type, uint16_t sender_port);
 bool receive_STP(struct node *currNode, uint8_t i, mixnet_packet *stp_packet);
 // UTILS:
 void print_packet(mixnet_packet *packet);
@@ -51,7 +51,7 @@ void print_node(struct node *node);
    * @param node
    */
   void send_packet(void *const handle, struct node *node,
-                  enum mixnet_packet_type_enum type, uint16_t sender_index) {
+                  enum mixnet_packet_type_enum type, uint16_t sender_port) {
     //initialize a packet and send to all neighbors
     //don't have to bother w blocks, stp should send everywhere
 
@@ -81,17 +81,17 @@ void print_node(struct node *node);
 
     //send all instead of 
     else if (type == PACKET_TYPE_FLOOD){
-        printf("-----------Sending Flood-Packet from Node #%u---------------\n", node->my_addr);
-        bool sent = false;
+        printf("------Node #%u 's NB_INDX:%d sent FLOOD------------\n", node->my_addr, sender_port);
+        // bool sent = false;
         for (int i = 0; i < node->num_neighbors; i++) {
-                if (!node->neighbors_blocked[i] && i != sender_index){
-                    printf("Sending out FLOOD to %u \n", i);
+                if (!node->neighbors_blocked[i] && i != sender_port){
+                    printf("Sending out FLOOD to NB_INDX:%u | addr:%u \n", i, (unsigned int)node->neighbors_addy[i]);
                     mixnet_packet* flood_packet = initialize_FLOOD_packet(node->root_addr,node->path_len,node->my_addr);
                     // print_packet(flood_packet);
                     
                     // print_packet(flood_packet);
                     mixnet_send(handle, i, flood_packet); //TODO error_handling
-                    sent = true;
+                    // sent = true;
                     // bool sent = 
                     // if (!sent) {
                     //   printf("Error sending FlOOD packet \n");
@@ -102,13 +102,12 @@ void print_node(struct node *node);
                 }
         }
 
-        // [MISSING] send to my user!
-        if (!sent){
+        // Always send to my user, unless I received it from the user!
+        if (sender_port != node->num_neighbors){
             printf("[FLOOD ENDS] Sending out Flood to my USER! \n");
             mixnet_packet* flood_packet = initialize_FLOOD_packet(node->root_addr,node->path_len,node->my_addr);
             mixnet_send(handle, node->num_neighbors, flood_packet);
         }
-            // printf("-------------------------------------ending FlOODS sending from %u--------------------\n", node->my_addr);
     }
 }
 
@@ -293,9 +292,14 @@ void run_node(void *const handle,
             mixnet_packet_stp *update = (mixnet_packet_stp *)malloc(sizeof(mixnet_packet_stp));
             memcpy((void *)update, (void *)packet_buffer->payload,
     sizeof(mixnet_packet_stp));
-        uint16_t sender = update->node_address;
+        // uint16_t sender_id = update->node_address;
         free(update);
-        printf("Packet's root address: %u \n", sender);
+        if (port == node->num_neighbors) {
+            printf("Received user packet! \n");
+        } else {
+            printf("Received from other neighbours @ NB_INDX:%u \n", port);
+        }
+            //
             switch (packet_buffer->type) {
             case PACKET_TYPE_STP:
 
@@ -306,7 +310,7 @@ void run_node(void *const handle,
             case PACKET_TYPE_FLOOD:
 
             //only send to other neighbors
-                send_packet(handle, node, PACKET_TYPE_FLOOD, sender);
+                send_packet(handle, node, PACKET_TYPE_FLOOD, port);
                 break;
             }
         }
@@ -337,7 +341,7 @@ bool receive_STP(struct node * currNode, uint8_t port, mixnet_packet* stp_packet
         currNode->neighbors_addy[port] = update->node_address;
         currNode->neighbors_blocked[port] = false; // unblock
     } else {
-        bool updated = false;
+        bool state_changed = false;
         // Received lower_root_address
         if (update->root_address < currNode->root_addr) {
                     printf("[1] Updating.. root[%d] address of because received lower ROOT addr \n", currNode->my_addr);
