@@ -8,6 +8,16 @@
 #include <string.h>
 
 
+/*
+STP Packet is made up of 3 fields
+
+1. Root Address (Global)
+2. Path Length 
+3. My Node Address (Local)
+*/
+
+*/ 
+
 mixnet_packet* initialize_STP_packet(mixnet_address root_address,
                                    u_int16_t path_length,
                                    mixnet_address node_address) {
