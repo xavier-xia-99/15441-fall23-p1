@@ -38,70 +38,61 @@ struct neighbor {
 
 // Declare functions
 void receive_and_update(void *const handle, struct node *node);
-void send_packet(void *const handle, struct node *node, enum mixnet_packet_type_enum type, uint16_t sender_port);
+// void send_packet(void *const handle, struct node *node, enum mixnet_packet_type_enum type, uint16_t sender_port);
 bool receive_STP(struct node *currNode, uint8_t i, mixnet_packet *stp_packet);
 // UTILS:
 void print_packet(mixnet_packet *packet);
 void print_node(struct node *node);
 
   /**
-   * @brief This function is called send STPS constatnly
+   * @brief This function is called send STP constatnly
    *
    * @param handle
    * @param node
    */
-  void send_packet(void *const handle, struct node *node,
-                  enum mixnet_packet_type_enum type, uint16_t sender_port) {
+void send_STP(void *const handle, struct node *node) {
     //initialize a packet and send to all neighbors
     //don't have to bother w blocks, stp should send everywhere
-
     //don't need send last one. last one is user
-    if (type == PACKET_TYPE_STP){
-    //    printf("-----------------------going to be sending out STP from %u--------------------\n", node->my_addr);
-        for (int i = 0; i < node->num_neighbors; i++) {
-                // printf("Sending out STP to %d \n", node->neighbors_addy[i]);
-                mixnet_packet* discover_packet = initialize_STP_packet(node->root_addr,node->path_len,node -> my_addr);
-                // print_packet(discover_packet);
-                bool sent = mixnet_send(handle, i, discover_packet); //TODO error_handling
-                if (!sent){
-                    printf("error sending STP packet \n");
-                }
-                else {
-                    const char* val = (node->neighbors_addy[i] == -1) ? "NULL" : "NOT NULL";
-                    if (strcmp(val, "NULL") == 0) {
-                        printf("Success! STP packet sent to NULL\n");
-                    } else {
-                        printf("Success! STP packet sent to %d\n", node->neighbors_addy[i]);
-                    }
-                }
+    for (int i = 0; i < node->num_neighbors; i++) {
+        // printf("Sending out STP to %d \n", node->neighbors_addy[i]);
+        mixnet_packet* discover_packet = initialize_STP_packet(node->root_addr,node->path_len,node -> my_addr);
+        // print_packet(discover_packet);
+        bool sent = mixnet_send(handle, i, discover_packet); //TODO error_handling
+        if (!sent){
+            printf("error sending STP packet \n");
         }
-
-        // printf("-------------------------------------ending STP sending from %u--------------------\n", node->my_addr);
+        else {
+            const char* val = (node->neighbors_addy[i] == -1) ? "NULL" : "NOT NULL";
+            if (strcmp(val, "NULL") == 0) {
+                printf("Success! STP packet sent to NULL\n");
+            } else {
+                printf("Success! STP packet sent to %d\n", node->neighbors_addy[i]);
+            }
+        }
     }
+        // printf("-------------------------------------ending STP sending from %u--------------------\n", node->my_addr);
+}
 
-    //send all instead of 
-    else if (type == PACKET_TYPE_FLOOD){
+
+  /**
+   * @brief This function sends Flood Packet, and takes note of the sender port
+   *
+   * @param handle
+   * @param node
+   * @param sender_port (do not send back)
+   */
+void send_FLOOD(void *const handle, struct node *node, uint16_t sender_port) {
         printf("------Node #%u 's NB_INDX:%d sent FLOOD------------\n", node->my_addr, sender_port);
         // bool sent = false;
         for (int i = 0; i < node->num_neighbors; i++) {
                 if (!node->neighbors_blocked[i] && i != sender_port){
                     printf("Sending out FLOOD to NB_INDX:%u | addr:%u \n", i, (unsigned int)node->neighbors_addy[i]);
                     mixnet_packet* flood_packet = initialize_FLOOD_packet(node->root_addr,node->path_len,node->my_addr);
-                    // print_packet(flood_packet);
-                    
-                    // print_packet(flood_packet);
+
                     mixnet_send(handle, i, flood_packet); //TODO error_handling
-                    // sent = true;
-                    // bool sent = 
-                    // if (!sent) {
-                    //   printf("Error sending FlOOD packet \n");
-                    // }
-                    // else {
-                    // printf("success! FlOOD packet sent to %hn\n", node->neighbors_addy);
-                    //  }
                 }
         }
-
         // Always send to my user, unless I received it from the user!
         if (sender_port != node->num_neighbors){
             printf("[FLOOD ENDS] Sending out Flood to my USER! \n");
@@ -109,7 +100,6 @@ void print_node(struct node *node);
             mixnet_send(handle, node->num_neighbors, flood_packet);
         }
     }
-}
 
 // TODO : add support for custom message
 void print_packet(mixnet_packet *packet) {
@@ -232,7 +222,7 @@ void run_node(void *const handle,
     //can i just do this
     print_node(node);
 
-    send_packet(handle, node, PACKET_TYPE_STP, 0); // SEND STP 
+    send_STP(handle, node); // SEND STP 
     // printf("Sending STP for Neighbor update \n");
     // receive_and_update(handle, node);
     // printf("Set up neighbours");
@@ -270,7 +260,7 @@ void run_node(void *const handle,
             if (node->root_addr == node->my_addr && curr_time - start_time >= config.root_hello_interval_ms * 1000) {
                 // printf("Starting time: %lu \n", curr_time);
                 // printf("Node: %d did not receive, and I AM ROOT so sending hello!' \n", node_id);
-                send_packet(handle, node, PACKET_TYPE_STP, 0);
+                send_STP(handle, node);
                 start_time = clock();
             }
 
@@ -280,7 +270,7 @@ void run_node(void *const handle,
                 node->root_addr = node->my_addr;
                 node->path_len = 0;
                 node->next_hop = node->my_addr;
-                send_packet(handle, node, PACKET_TYPE_STP, 0);
+                send_STP(handle, node);
                 start_time = clock();
             }
         } 
@@ -310,7 +300,7 @@ void run_node(void *const handle,
             case PACKET_TYPE_FLOOD:
 
             //only send to other neighbors
-                send_packet(handle, node, PACKET_TYPE_FLOOD, port);
+                send_FLOOD(handle, node, port);
                 break;
             }
         }
