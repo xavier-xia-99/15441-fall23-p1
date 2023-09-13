@@ -14,7 +14,15 @@ STP Packet is made up of 3 fields
 1. Root Address (Global)
 2. Path Length 
 3. My Node Address (Local)
-*/
+
+
+typedef struct mixnet_packet_stp {
+    mixnet_address root_address;        // Root of the spanning tree
+    uint16_t path_length;               // Length of path to the root
+    mixnet_address node_address;        // Current node's mixnet address
+
+}
+
 
 */ 
 
