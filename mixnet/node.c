@@ -326,10 +326,6 @@ bool receive_STP(struct node * currNode, uint8_t port, mixnet_packet* stp_packet
     memcpy((void *)update, (void *)stp_packet->payload,
            sizeof(mixnet_packet_stp));
 
-    // Update if the neighbors list are NULL
-    // for (int i = 0; i < currNode->num_neighbors; i++) {
-    //     printf("NB #%u , &: %d \n", i, currNode->neighbors_addy[i]);
-    // }
 
     // if (update->node_address == currNode->my_addr) {
     //     printf("Received STP packet from myself, ignoring \n");
@@ -353,7 +349,7 @@ bool receive_STP(struct node * currNode, uint8_t port, mixnet_packet* stp_packet
                     currNode->root_addr = update->root_address;
                     currNode->path_len = update->path_length + 1;
                     currNode->next_hop = update->node_address;
-                    updated = true;
+                    state_changed = true;
 
 
         }
@@ -366,7 +362,7 @@ bool receive_STP(struct node * currNode, uint8_t port, mixnet_packet* stp_packet
                     
                     currNode->path_len = update->path_length + 1;
                     currNode->next_hop = update->node_address;
-                    updated = true;
+                    state_changed = true;
         }
         // Received lower_address for next_hop
         else if (update->root_address == currNode->root_addr &&
@@ -375,19 +371,42 @@ bool receive_STP(struct node * currNode, uint8_t port, mixnet_packet* stp_packet
                     printf("[3] pdated root[%d] cause update's node is better for next hop\n", currNode->my_addr);
                     printf("before: root address: %u, path length: %u, next hop: %u \n", currNode->root_addr, currNode->path_len, currNode->next_hop);
                     printf("after: root address: %u, path length: %u, next hop: %u \n", update->root_address, update->path_length + 1, update->node_address);
-
                     currNode->next_hop = update->node_address;
-                    updated = true;
+                    state_changed = true;
         }
 
-        // If the update_packet from this port was not useful, BLOCK it
-        if (!updated) {
-                printf("Not updating, Blocking relative port \n");
-                currNode->neighbors_blocked[port] = true;
-        } 
-        else { // updated, unblock
-            currNode->neighbors_blocked[port] = false;
+        if (state_changed){
+            // Reset All Nodes
+                // Reset all neighbours state to unblocked:
+            for (int i = 0; i < currNode->num_neighbors; i++) {
+                currNode->neighbors_blocked[i] = false;
+            }
         }
+        else {
+            // Find and Block Siblings
+            if (update->root_address == currNode->root_addr &&
+                 update->path_length == currNode->path_len){
+                    printf("Blocking siblings of root[%d] cause they are siblings\n", currNode->my_addr);
+                    currNode->neighbors_blocked[port] = true;
+            }
+
+        // For potential parent, i as a children, block my update[parent]
+        // same root as you and whose path length + 1== your path length
+            if (update->root_address == currNode->root_addr &&
+                 update->path_length + 1 == currNode->path_len &&
+                 update->node_address != currNode->next_hop){
+                    printf("Node #%d, blocking my potential Parent, who is strictly worse \n", currNode->my_addr);
+                    currNode->neighbors_blocked[port] = true;
+            }
+        }
+        /*
+        
+        BLOCKING LOGIC
+        
+        1. siblings
+        2. not real parents
+        */
+        
     }
     free(update);
     printf("[End of STP packet!]\n\n");
