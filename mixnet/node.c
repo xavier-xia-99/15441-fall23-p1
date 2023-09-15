@@ -328,7 +328,7 @@ bool receive_STP(struct node * currNode, uint8_t port, mixnet_packet* stp_packet
     //     printf("Received STP packet from myself, ignoring \n");
     //     return false;
     // }
-    mixnet_address old_root;
+    // mixnet_address old_root;
     
     if (currNode->neighbors_addy[port] == -1) {
         // printf("Updating neighbors list because it was NULL \n");
@@ -341,20 +341,16 @@ bool receive_STP(struct node * currNode, uint8_t port, mixnet_packet* stp_packet
                     // printf("[1] Updating.. root[%d] address of because received lower ROOT addr \n", currNode->my_addr);
                     // //print before and after for me
 
-                    // printf("before: root address: %u, path length: %u, next hop: %u \n", currNode->root_addr, currNode->path_len, currNode->next_hop);
-                    // printf("after: root address: %u, path length: %u, next hop: %u \n", update->root_address, update->path_length + 1, update->node_address);
-
                     currNode->root_addr = update->root_address;
                     currNode->path_len = update->path_length + 1;
                     currNode->next_hop = update->node_address;
                     state_changed = true;
+                    // old_root = currNode->root_addr;
         }
         // Received lower_path_length
         else if (update->root_address == currNode->root_addr &&
                  update->path_length + 1 < currNode->path_len) {
                     // printf("[2] Updated root[%d] because better path\n", currNode->my_addr);
-                    // printf("before: root address: %u, path length: %u, next hop: %u \n", currNode->root_addr, currNode->path_len, currNode->next_hop);
-                    // printf("after: root address: %u, path length: %u, next hop: %u \n", update->root_address, update->path_length + 1, update->node_address);
                     
                     currNode->path_len = update->path_length + 1;
                     currNode->next_hop = update->node_address;
@@ -365,8 +361,6 @@ bool receive_STP(struct node * currNode, uint8_t port, mixnet_packet* stp_packet
                  update->path_length + 1 == currNode->path_len &&
                  update->node_address < currNode->next_hop) {
                     // printf("[3] pdated root[%d] cause update's node is better for next hop\n", currNode->my_addr);
-                    // printf("before: root address: %u, path length: %u, next hop: %u \n", currNode->root_addr, currNode->path_len, currNode->next_hop);
-                    // printf("after: root address: %u, path length: %u, next hop: %u \n", update->root_address, update->path_length + 1, update->node_address);
                     currNode->next_hop = update->node_address;
                     state_changed = true;
         }
@@ -383,6 +377,7 @@ bool receive_STP(struct node * currNode, uint8_t port, mixnet_packet* stp_packet
             for (int i = 0; i < currNode->num_neighbors; i++) {
                 currNode->neighbors_blocked[i] = false;
             }
+            // currNode->neighbors_blocked[old_root] = 
         }
         else {
             // Find and Block Siblings
@@ -400,11 +395,12 @@ bool receive_STP(struct node * currNode, uint8_t port, mixnet_packet* stp_packet
                     // printf("Node #%d, blocking my potential Parent, who is strictly worse \n", currNode->my_addr);
                     currNode->neighbors_blocked[port] = true;
             }
+
+
         }
         /*
         
         BLOCKING LOGIC
-        
         1. siblings
         2. not real parents
         */
