@@ -232,7 +232,8 @@ void run_node(void *const handle,
     // printf("Set up neighbours");
     // print_node(node);
     
-    uint32_t start_time = get_time_in_ms();
+    uint32_t re_election_time = get_time_in_ms();
+    uint32_t heartbeat_time = get_time_in_ms();
     // printf("Starting time: %d \n", start_time);
 
     //allocate chunk of memory
@@ -256,29 +257,29 @@ void run_node(void *const handle,
             // }
 
         // receiving from all my neighbors
-        // for (uint8_t i = 0; i < node->num_neighbors; i++) {
-        if (!recv) {
-            // i'm root, and its time to send a root hello
-            uint32_t curr_time = get_time_in_ms();
-            if (node->root_addr == node->my_addr && curr_time - start_time >= config.root_hello_interval_ms) {
-                // printf("Starting time: %lu \n", curr_time);
-                // printf("Node: %d did not receive, and I AM ROOT so sending hello!' \n", node_id);
-                send_STP(handle, node);
-                start_time = get_time_in_ms();
-            }
+        uint32_t curr_time = get_time_in_ms();
 
-            // hey, i'm not the root, but i haven't got a root hello in a while. i'm root now!
-            else if (node->root_addr != node->my_addr && curr_time - start_time >= config.reelection_interval_ms) {
-                // printf("Node: %d not receive, i am NOT root but exceed REELECTION interval, so I AM ROOT!' \n", node_id);
-                node->root_addr = node->my_addr;
-                node->path_len = 0;
-                node->next_hop = node->my_addr;
-                send_STP(handle, node);
-                start_time = get_time_in_ms();
-            }
-        } 
+        // i'm root, and its time to send a root hello
+        if (node->root_addr == node->my_addr && curr_time - heartbeat_time >= config.root_hello_interval_ms) {
+            // printf("Starting time: %lu \n", curr_time);
+            // printf("Node: %d did not receive, and I AM ROOT so sending hello!' \n", node_id);
+            send_STP(handle, node);
+            heartbeat_time = get_time_in_ms();
+            re_election_time = get_time_in_ms();
+        }
+
+        // hey, i'm not the root, but i haven't got a root hello in a while. i'm root now!
+        else if (node->root_addr != node->my_addr && curr_time - re_election_time >= config.reelection_interval_ms) {
+            // printf("Node: %d not receive, i am NOT root but exceed REELECTION interval, so I AM ROOT!' \n", node_id);
+            node->root_addr = node->my_addr;
+            node->path_len = 0;
+            node->next_hop = node->my_addr;
+            send_STP(handle, node);
+            re_election_time = get_time_in_ms();
+        }
+    
         // we received something. 
-        else if (recv) {
+        if (recv) {
             // printf("Node: %d received packet! @ Port : %d \n", node_id, port);
             // printf("Packet Type : %s \n", get_packet_type(packet_buffer));
             // printf("RECEIVED Packet! \n");
@@ -295,20 +296,24 @@ void run_node(void *const handle,
         //     //
             switch (packet_buffer->type) {
             case PACKET_TYPE_STP:
-
-                receive_STP(node, port, packet_buffer, handle);
                 
-                // }
+                // HEART_BEAT (resets re_election_time)
+                if (update->root_address == node->root_addr && update->path_length + 1 == node->path_len && update->node_address == node->next_hop) {
+                    mixnet_packet* new_packet = initialize_STP_packet(node->root_addr,node->path_len,node->my_addr);
+                    mixnet_send(handle, port, new_packet);
+                    re_election_time = get_time_in_ms(); 
+                    break;
+                }
+                receive_STP(node, port, packet_buffer, handle);
+
                 break;
             case PACKET_TYPE_FLOOD:
-
             //only send to other neighbors
                 send_FLOOD(handle, node, port);
                 break;
             }
         }
-        }
-
+    }
     // printf("\n Node[#%d] Stats: \n | Received %d user packets | Node[#%d] stopped running \n", node->my_addr, num_user_packets, node->my_addr);
     // print_node(node);
 }
@@ -334,6 +339,7 @@ bool receive_STP(struct node * currNode, uint8_t port, mixnet_packet* stp_packet
         // printf("Updating neighbors list because it was NULL \n");
         currNode->neighbors_addy[port] = update->node_address;
         currNode->neighbors_blocked[port] = false; // unblock
+        return true;
     } else {
         bool state_changed = false;
         // Received lower_root_address
@@ -341,11 +347,11 @@ bool receive_STP(struct node * currNode, uint8_t port, mixnet_packet* stp_packet
                     // printf("[1] Updating.. root[%d] address of because received lower ROOT addr \n", currNode->my_addr);
                     // //print before and after for me
 
-                    currNode->root_addr = update->root_address;
-                    currNode->path_len = update->path_length + 1;
-                    currNode->next_hop = update->node_address;
-                    state_changed = true;
-                    // old_root = currNode->root_addr;
+                currNode->root_addr = update->root_address;
+                currNode->path_len = update->path_length + 1;
+                currNode->next_hop = update->node_address;
+                state_changed = true;
+                // old_root = currNode->root_addr;
         }
         // Received lower_path_length
         else if (update->root_address == currNode->root_addr &&
@@ -395,9 +401,8 @@ bool receive_STP(struct node * currNode, uint8_t port, mixnet_packet* stp_packet
                     // printf("Node #%d, blocking my potential Parent, who is strictly worse \n", currNode->my_addr);
                     currNode->neighbors_blocked[port] = true;
             }
-
-
         }
+
         /*
         
         BLOCKING LOGIC
