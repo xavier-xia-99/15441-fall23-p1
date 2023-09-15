@@ -328,7 +328,7 @@ bool receive_STP(struct node * currNode, uint8_t port, mixnet_packet* stp_packet
     //     printf("Received STP packet from myself, ignoring \n");
     //     return false;
     // }
-    mixnet_address old_root;
+    // mixnet_address old_root;
     
     if (currNode->neighbors_addy[port] == -1) {
         // printf("Updating neighbors list because it was NULL \n");
