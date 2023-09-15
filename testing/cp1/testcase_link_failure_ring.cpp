@@ -9,7 +9,7 @@
  * without the express permission of the 15-441/641 course staff.
  */
 #include "common/testing.h"
-
+#include "iostream"
 /**
  * This test-case checks whether nodes can recover
  * when a random link goes down in a ring network.
@@ -28,7 +28,7 @@ public:
 
     virtual void setup() override {
         init_graph(5);
-        graph_->set_mixaddrs({13, 14, 15, 4, 21});
+        graph_->set_mixaddrs({0, 1, 2, 3, 4});
         graph_->generate_topology(graph::type::RING);
 
         // Update STP convergence parameters
@@ -39,7 +39,10 @@ public:
     virtual error_code run(orchestrator& o) override {
         sleep(5); // Wait for STP convergence
 
+        std::cout << "[STP Convergence]" << std::endl;
         // Subscribe to packets from all nodes
+        // auto& graph = graph_->topology();
+
         for (uint16_t i = 0; i < graph_->num_nodes; i++) {
             DIE_ON_ERROR(o.pcap_change_subscription(i, true));
         }
@@ -57,6 +60,16 @@ public:
         for (uint16_t i = 0; i < 7; i++) {
             DIE_ON_ERROR(o.send_packet(3, 0, PACKET_TYPE_FLOOD));
         }
+
+        // for (size_t i = 0; i < graph.size(); i ++){
+        //     std::cout << "Node #" << i << " has neighbors -> | " << 
+        //     for (size_t j = 0; j < graph[i].size(); j ++){
+        //         std::cout << j << " state: " << graph[i][j] << "|";
+        //     }
+        //     std::cout << std::endl;
+        // }
+    
+        
         sleep(5); // Wait for packets to propagate
         return error_code::NONE;
     }
