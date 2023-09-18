@@ -115,7 +115,7 @@ void run_node(void *const handle,
 
     // print_node_config(config);
     // Initialize Node
-    struct Node* node = malloc(sizeof(struct node));
+    struct Node* node = malloc(sizeof(struct Node));
     node->num_neighbors = config.num_neighbors;
     node->neighbors_addy = malloc(sizeof(int) * config.num_neighbors);
     node->neighbors_blocked = malloc(sizeof(bool) * config.num_neighbors);
@@ -216,7 +216,7 @@ void run_node(void *const handle,
                 }
         }
     }
-    // printf("\n Node[#%d] Stats: \n | Received %d user packets | Node[#%d] stopped running \n", node->my_addr, num_user_packets, node->my_addr);
+    printf("\n Node[#%d] Stats: \n | Received %d user packets | Node[#%d] stopped running \n", node->my_addr, num_user_packets, node->my_addr);
     // print_node(node);
 }
 

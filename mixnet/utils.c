@@ -27,6 +27,8 @@ typedef struct mixnet_packet_stp {
 
 */ 
 
+
+
 mixnet_packet* initialize_STP_packet(mixnet_address root_address,
                                    u_int16_t path_length,
                                    mixnet_address node_address) {
@@ -60,12 +62,7 @@ mixnet_packet* initialize_STP_packet(mixnet_address root_address,
 
   return stp_packet;
 }
-//identify? wym oh like u mean fi the mem thing we r doing is correct is it
-//shld be correct la u maxmined it ma yep, thats why ya Ok
-// case on packet what,like same as init. 
-// yeah cause we receive then allocate size , i think is fine, then memcpy the payload over. oh ya
 
-// we also allocated packet to MAXMINXETSIZE right yeaj, ask him if thats fine also, should be la
 mixnet_packet* initialize_FLOOD_packet(mixnet_address root_address,
                                    u_int16_t path_length,
                                    mixnet_address node_address) {
