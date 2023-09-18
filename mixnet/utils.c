@@ -8,27 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-
-/*
-STP Packet is made up of 3 fields
-
-1. Root Address (Global)
-2. Path Length 
-3. My Node Address (Local)
-
-
-typedef struct mixnet_packet_stp {
-    mixnet_address root_address;        // Root of the spanning tree
-    uint16_t path_length;               // Length of path to the root
-    mixnet_address node_address;        // Current node's mixnet address
-
-}
-
-
-*/ 
-
-
-
+ 
 mixnet_packet* initialize_STP_packet(mixnet_address root_address,
                                    u_int16_t path_length,
                                    mixnet_address node_address) {
@@ -98,7 +78,7 @@ mixnet_packet* initialize_FLOOD_packet(mixnet_address root_address,
   return stp_packet;
 }
 
-// TO IMPL (for Dijkstra's)
+// TODO : CHECK IF THIS IS CORRECT
 // 2^8 (nb, cost) pairs possible
 
 // typedef struct mixnet_lsa_link_params {
@@ -127,6 +107,28 @@ mixnet_packet* initialize_LSA_packet(mixnet_address node_addr, uint8_t nb_count,
   return LSA_packet;
 }
 
+// TODO : IMPL
+mixnet_packet* initialize_DATA_packet(mixnet_packet_routing_header* routing_header, void* data){
+    // Init to Max
+    mixnet_packet *DATA_packet = (mixnet_packet *)malloc(
+      sizeof(MAX_MIXNET_PACKET_SIZE));
+
+
+    DATA_packet->total_size = 12 + sizeof(mixnet_packet_routing_header) + sizeof(data);
+    DATA_packet->type = PACKET_TYPE_DATA;
+    // memcpy(DATA_packet->payload, routing_header, sizeof(mixnet_packet_routing_header));
+    // // Allocating according to nb_count
+    // mixnet_packet_data *DATA_payload =
+    //     (mixnet_packet_data *)malloc(sizeof(mixnet_packet_data) + sizeof(mixnet_packet_routing_header) + sizeof(data));
+
+    // DATA_payload->routing_header = *routing_header;
+    // DATA_payload->data = data;
+
+    return DATA_packet;    
+
+
+
+}
 
 
 // TODO : add support for custom message
