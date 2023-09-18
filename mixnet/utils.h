@@ -27,14 +27,12 @@ mixnet_packet* initialize_STP_packet(mixnet_address root_address, uint16_t path_
 
 mixnet_packet* initialize_FLOOD_packet(mixnet_address root_address, uint16_t path_length, mixnet_address node_address);
 
-// TO IMPL
-mixnet_packet* initialize_LSA_packet(mixnet_address node_addr, uint8_t nb_count, int16_t* nb_list);
+// TO IMPL (for Dijkstra's)
+// 2^8 (nb, cost) pairs possible
+mixnet_packet* initialize_LSA_packet(mixnet_address node_addr, uint8_t nb_count, mixnet_address* neighbor_mixaddr, uint16_t* cost); 
 
-// uint8_t num_neighbors;  // number of neighbors
-// int16_t *neighbors_addy; 
-
-
-mixnet_packet* initialize_DATA_packet(mixnet_address root_address, uint16_t path_length, mixnet_address node_address);
+// alloc to MAX_MIXNET_DATA_SIZE , copy over data properly usin gpointer
+mixnet_packet* initialize_DATA_packet(mixnet_packet_routing_header* routing_header);
 
 // UTILS:
 // void print_packet(mixnet_packet *packet);

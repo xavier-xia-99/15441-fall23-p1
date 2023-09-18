@@ -39,9 +39,9 @@ struct RoutingHeader {
     mixnet_address dest_addr; // given by user of mixnet_node
     uint16_t route_len; // len(route)
     uint16_t route_index; // pointer at route (using pointer arithmetic)
-    uint16_t *route; // [Node1, Node2, Node3...]
-    uint16_t *link_cost; // [Cost1, Cost2, Cost3...]
 };
+
+
 
 
 

@@ -98,6 +98,35 @@ mixnet_packet* initialize_FLOOD_packet(mixnet_address root_address,
   return stp_packet;
 }
 
+// TO IMPL (for Dijkstra's)
+// 2^8 (nb, cost) pairs possible
+
+// typedef struct mixnet_lsa_link_params {
+//     mixnet_address neighbor_mixaddr;    // Link partner's mixnet address
+//     uint16_t cost;                      // Cost of routing on this link
+mixnet_packet* initialize_LSA_packet(mixnet_address node_addr, uint8_t nb_count,  mixnet_address* neighbor_mixaddr, uint16_t* cost   ){
+
+  mixnet_packet *LSA_packet = (mixnet_packet *)malloc(
+      sizeof(mixnet_packet) + sizeof(4 + 4 * MAX_MIXNET_ROUTE_LENGTH));
+
+  LSA_packet->total_size = 12 + 4 + 4 * nb_count;
+  LSA_packet->type = PACKET_TYPE_LSA;
+
+  // Allocating according to nb_count
+  mixnet_packet_lsa *LSA_payload =
+      (mixnet_packet_lsa *)malloc(sizeof(mixnet_packet_lsa) + sizeof(mixnet_lsa_link_params) * nb_count);
+
+  LSA_payload->node_address = node_addr;
+  LSA_payload->neighbor_count = nb_count;
+
+  // Can we just assign as an array
+  for (int i = 0; i < nb_count; i++) {
+    LSA_payload->links[i].neighbor_mixaddr = neighbor_mixaddr[i];
+    LSA_payload->links[i].cost = cost[i];
+  }
+  return LSA_packet;
+}
+
 
 
 // TODO : add support for custom message
