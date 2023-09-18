@@ -814,7 +814,9 @@ error_code fragment::task_end_testcase() {
     message_queue_write(mq_pcap_.get(), (void*) ptr);
 
     // Give threads some time, if required
-    if (!node_context_->ts.exited || !ts_pcap_.exited) { sleep(1); }
+    if (!node_context_->ts.exited || !ts_pcap_.exited) {
+        std::this_thread::sleep_for(milliseconds(200));
+    }
 
     // Nope, still running
     if (!node_context_->ts.exited || !ts_pcap_.exited) {
@@ -978,6 +980,7 @@ void fragment::run() {
     } while ((state_ != state_t::DONE) &&
              (error_code == error_code::NONE));
 
+    std::cout << std::flush;
     if (error_code == error_code::NONE) {
         if (!autotest_mode_) {
             std::cout << "[Fragment " << fid_

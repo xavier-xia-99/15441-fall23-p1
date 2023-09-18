@@ -42,7 +42,7 @@ public:
     // Poll timer for quasi-blocking pcap communication
     static constexpr uint64_t PCAP_POLL_TIMEOUT_MS = 50;
     // Wait time to send/recv data to/from all fragments
-    static constexpr uint64_t DEFAULT_WAIT_TIME_MS = 5000;
+    static constexpr uint64_t DEFAULT_WAIT_TIME_MS = 1000;
 
 private:
     // FSM states. These represent common tasks that need to
