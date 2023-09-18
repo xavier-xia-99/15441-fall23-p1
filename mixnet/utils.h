@@ -23,8 +23,14 @@
 // mixnet_packet_routing_header: For routing info
 // mixnet_packet_ping: Ping packets
 
-mixnet_packet* initialize_STP_packet(mixnet_address root_address, u_int16_t path_length, mixnet_address node_address);
+mixnet_packet* initialize_STP_packet(mixnet_address root_address, uint16_t path_length, mixnet_address node_address);
 
-mixnet_packet* initialize_FLOOD_packet(mixnet_address root_address, u_int16_t path_length, mixnet_address node_address);
+mixnet_packet* initialize_FLOOD_packet(mixnet_address root_address, uint16_t path_length, mixnet_address node_address);
 
-#endif 
+// UTILS:
+// void print_packet(mixnet_packet *packet);
+
+// void print_node(struct node *node);
+
+
+#endif

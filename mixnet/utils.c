@@ -3,7 +3,8 @@
 #include "connection.h"
 #include "packet.h"
 
-#include "packet_init.h"
+#include "utils.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -98,4 +99,72 @@ mixnet_packet* initialize_FLOOD_packet(mixnet_address root_address,
          sizeof(mixnet_packet_stp));
   
   return stp_packet;
+}
+
+
+
+// TODO : add support for custom message
+void print_packet(mixnet_packet *packet) {
+    //  Free-d
+    printf("\n--------------------[START OF PACKET]------------------\n");
+    printf("PACKET TYPE: %d \n", packet->type);
+    printf("Payload: \n");
+    switch (packet->type) {
+        case PACKET_TYPE_STP:
+        case PACKET_TYPE_FLOOD:
+        {
+            mixnet_packet_stp *update =(mixnet_packet_stp *)malloc(sizeof(mixnet_packet_stp)); //
+            memcpy((void *)update, (void *)packet->payload,
+                sizeof(mixnet_packet_stp));
+
+            printf("Printing Packet! \n");
+            printf("Root(Node) Address: %d \n", update->root_address);
+            printf("Path Length: %d \n", update->path_length);
+            printf("Sender(Node) address: %d \n", update->node_address);
+
+            free(update);
+        }
+        break;  
+    // case PACKET_TYPE_DATA:
+    //     mixnet_packet_data *update =
+    //         (mixnet_packet_data *)malloc(sizeof(mixnet_packet_data)); //
+    //     memcpy((void *)data, (void *)packet->payload,
+    //            sizeof(mixnet_packet_data));
+    //     printf("Printing Packet! \n");
+    //     printf("Root address: %d \n", data->root_address);
+    //     printf("Path length: %d \n", data->path_length);
+    //     printf("Node address: %d \n", data->node_address);
+    //     printf("Data: %s \n", data->data);
+    //     break;
+    // }
+    printf("\n-------------------[END OF PACKET]----------------------\n");
+    }
+}
+
+
+
+char* get_packet_type(mixnet_packet *packet) {
+    switch (packet->type) {
+        case PACKET_TYPE_STP:
+        return "STP";
+        case PACKET_TYPE_FLOOD:
+        return "FLOOD";
+        case PACKET_TYPE_DATA:
+        return "DATA";
+        default :
+        return "ERROR WITH PACKET TYPE!";
+    }
+}
+
+void print_node_config(const struct mixnet_node_config config){
+    printf("--------- Printing Node Config! ---------\n");
+    printf("Node Address: %d \n", config.node_addr);
+    printf("Root Hello Interval: %d \n", config.root_hello_interval_ms);
+    printf("Reelection Interval: %d \n", config.reelection_interval_ms);
+    printf("Number of Neighbors: %d \n", config.num_neighbors);
+    // printf("Neighbors: \n");
+    // for (int i = 0; i < config.num_neighbors; i++) {
+    //     printf("Neighbor Node %d: %d \n", i, config.neighbors_addrs[i]);
+    // }
+    printf("---------Printing Node Config Complete! ---------\n");
 }
