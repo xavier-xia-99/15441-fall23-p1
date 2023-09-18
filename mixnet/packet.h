@@ -15,6 +15,7 @@
 
 #include <assert.h>
 #include <stdalign.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -114,6 +115,10 @@ typedef struct mixnet_packet_routing_header {
     mixnet_address *route() {
         return reinterpret_cast<mixnet_address*>(
             reinterpret_cast<char*>(this) + sizeof(*this));
+    }
+    const mixnet_address *route() const {
+        return reinterpret_cast<const mixnet_address*>(
+            reinterpret_cast<const char*>(this) + sizeof(*this));
     }
 #endif
 }__attribute__((packed)) mixnet_packet_routing_header;

@@ -21,9 +21,9 @@
 extern "C" {
 #endif
 
-// Default parameters
-#define DEFAULT_ROOT_HELLO_INTERVAL_MS  (2000)
-#define DEFAULT_REELECTION_INTERVAL_MS  (20000)
+// Default parameters. TODO(natre): Deprecate.
+#define DEFAULT_ROOT_HELLO_INTERVAL_MS  (100)
+#define DEFAULT_REELECTION_INTERVAL_MS  (1000)
 
 // Node configuration
 struct mixnet_node_config {
