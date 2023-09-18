@@ -281,7 +281,6 @@ bool receive_STP(struct node * currNode, uint8_t port, mixnet_packet* stp_packet
         // ======================= BLOCK LOGIC =======================
         
     }
-    // free(update);
     return true;
 }
 
