@@ -21,7 +21,7 @@
 #include <time.h>
 
 
-struct node {
+struct Node {
   uint8_t num_neighbors;  // number of neighbors
   int16_t *neighbors_addy; // Array of neighbors
   bool *neighbors_blocked; // Block of neighbors (false is unblocked)
@@ -32,16 +32,23 @@ struct node {
   int path_len;
 };
 
-// Considering switching to struct
-struct neighbor {
-  int16_t addr; // allowing -1 as default
-  bool blocked;
+
+// Found in DATA and PING Packet
+struct RoutingHeader {
+    mixnet_address src_addr; // given by user of mixnet_node
+    mixnet_address dest_addr; // given by user of mixnet_node
+    uint16_t route_len; // len(route)
+    uint16_t route_index; // pointer at route (using pointer arithmetic)
+    uint16_t *route; // [Node1, Node2, Node3...]
+    uint16_t *link_cost; // [Cost1, Cost2, Cost3...]
 };
 
+
+
 // Declare functions
-void receive_and_update(void *const handle, struct node *node);
+void receive_and_update(void *const handle, struct Node *node);
 // void send_packet(void *const handle, struct node *node, enum mixnet_packet_type_enum type, uint16_t sender_port);
-bool receive_STP(struct node *currNode, uint8_t i, mixnet_packet *stp_packet, void *const handle);
+bool receive_STP(struct Node *currNode, uint8_t i, mixnet_packet *stp_packet, void *const handle);
 
   /**
    * @brief This function is called send STP constatnly
@@ -49,7 +56,7 @@ bool receive_STP(struct node *currNode, uint8_t i, mixnet_packet *stp_packet, vo
    * @param handle
    * @param node
    */
-void send_STP(void *const handle, struct node *node) {
+void send_STP(void *const handle, struct Node *node) {
     //initialize a packet and send to all neighbors
     //don't have to bother w blocks, stp should send everywhere
     //don't need send last one. last one is user
@@ -69,7 +76,7 @@ void send_STP(void *const handle, struct node *node) {
    * @param node
    * @param sender_port (do not send back)
    */
-void send_FLOOD(void *const handle, struct node *node, uint16_t sender_port) {
+void send_FLOOD(void *const handle, struct Node *node, uint16_t sender_port) {
         // printf("------Node #%u 's NB_INDX:%d sent FLOOD------------\n", node->my_addr, sender_port);
         for (int i = 0; i < node->num_neighbors; i++) {
                 if (!node->neighbors_blocked[i] && i != sender_port){
@@ -108,7 +115,7 @@ void run_node(void *const handle,
 
     // print_node_config(config);
     // Initialize Node
-    struct node* node = malloc(sizeof(struct node));
+    struct Node* node = malloc(sizeof(struct node));
     node->num_neighbors = config.num_neighbors;
     node->neighbors_addy = malloc(sizeof(int) * config.num_neighbors);
     node->neighbors_blocked = malloc(sizeof(bool) * config.num_neighbors);
@@ -215,7 +222,7 @@ void run_node(void *const handle,
 
 
 // Does not reach this function at all
-bool receive_STP(struct node * currNode, uint8_t port, mixnet_packet* stp_packet, void *const handle){
+bool receive_STP(struct Node * currNode, uint8_t port, mixnet_packet* stp_packet, void *const handle){
     // printf("\n[Received STP packet!]\n");
 
     mixnet_packet_stp *update = (mixnet_packet_stp *)malloc(sizeof(mixnet_packet_stp)); // Free-d
@@ -286,7 +293,7 @@ bool receive_STP(struct node * currNode, uint8_t port, mixnet_packet* stp_packet
 
 
 
-void print_node(struct node *node) {
+void print_node(struct Node *node) {
     printf("-----------------Printing Node [#%d]!------------------- \n", node->my_addr);
     printf("Root Addr: %d \n", node->root_addr);
     printf("Path Len: %d \n", node->path_len);
