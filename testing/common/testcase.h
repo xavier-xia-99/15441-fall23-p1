@@ -45,13 +45,25 @@ protected:
     uint64_t pcap_count_ = 0;                   // RX packet count
 
     // Configuration
-    uint32_t root_hello_interval_ms_ = 2000;    // Default: 2 seconds
-    uint32_t reelection_interval_ms_ = 20000;   // Default: 20 seconds
+    uint32_t root_hello_interval_ms_ = 100;     // Default: 100 ms
+    uint32_t reelection_interval_ms_ = 1000;    // Default: 1 second
+
+    // Testing parameters
+    uint32_t max_convergence_time_ms_ = 5000;   // Default: 5 seconds
+    uint32_t max_propagation_time_ms_ = 5000;   // Default: 5 seconds
 
     /**
      * Internal helper methods.
      */
+    void await_convergence() const;
+    void await_packet_propagation() const;
     void init_graph(const uint16_t num_nodes);
+
+    bool check_data(const mixnet_packet *const packet,
+                    const std::string& expected_data) const;
+
+    bool check_route(const mixnet_packet_routing_header *const rh,
+                     const std::vector<mixnet_address>& expected) const;
 
     DISALLOW_COPY_AND_ASSIGN(testcase);
     explicit testcase(const std::string& name) : name(name) {}

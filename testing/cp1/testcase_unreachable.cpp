@@ -36,7 +36,7 @@ public:
     }
 
     virtual error_code run(orchestrator& o) override {
-        sleep(5); // Wait for STP convergence
+        await_convergence(); // Await STP convergence
 
         // Subscribe to the unreachable node
         DIE_ON_ERROR(o.pcap_change_subscription(7, true));
@@ -45,7 +45,7 @@ public:
         for (size_t i = 0; i < 7; i++) {
             DIE_ON_ERROR(o.send_packet(i, 0, PACKET_TYPE_FLOOD));
         }
-        sleep(5); // Wait for packets to propagate
+        await_packet_propagation();
 
         // Subscribe to packets from the remaining nodes
         for (uint16_t i = 0; i < 7; i++) {
@@ -55,7 +55,7 @@ public:
         for (uint16_t i = 0; i < 7; i++) {
             DIE_ON_ERROR(o.send_packet(7, 0, PACKET_TYPE_FLOOD));
         }
-        sleep(5); // Wait for packets to propagate
+        await_packet_propagation();
         return error_code::NONE;
     }
 

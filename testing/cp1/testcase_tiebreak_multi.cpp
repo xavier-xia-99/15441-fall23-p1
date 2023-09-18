@@ -42,7 +42,7 @@ public:
     }
 
     virtual error_code run(orchestrator& o) override {
-        sleep(5); // Wait for STP convergence
+        await_convergence(); // Await STP convergence
 
         // Disable the low-priority links (should be blocked)
         DIE_ON_ERROR(o.change_link_state(1, 3, false));
@@ -57,7 +57,7 @@ public:
         for (uint16_t i = 0; i < graph_->num_nodes; i++) {
             DIE_ON_ERROR(o.send_packet(i, 0, PACKET_TYPE_FLOOD));
         }
-        sleep(5); // Wait for packets to propagate
+        await_packet_propagation();
         return error_code::NONE;
     }
 

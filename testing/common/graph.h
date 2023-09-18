@@ -92,6 +92,7 @@ public:
     explicit graph(const uint16_t size);
 
     // Accessors
+    int get_node_id(const mixnet_address addr) const;
     node& get_node(const uint16_t id) { return nodes_.at(id); }
     const adjacency_graph& topology() const { return topology_; }
     const node& get_node(const uint16_t id) const { return nodes_.at(id); }

@@ -22,11 +22,17 @@ graph::graph(const uint16_t n) : num_nodes(n) {
     for (uint16_t i = 0; i < n; i++) { nodes_.push_back(node(i)); }
 }
 
+int graph::get_node_id(const mixnet_address addr) const {
+    auto iter = std::find_if(nodes_.begin(), nodes_.end(),
+        [addr] (const node& v) { return (v.mixaddr() == addr); });
+
+    return ((iter != nodes_.end()) ?
+            (iter - nodes_.begin()) : -1);
+}
+
 graph& graph::add_edge(const half_edge src, const half_edge dst) {
     // Sanity check: Ensure indices, costs are permissible
     assert((src.id < num_nodes) && (dst.id < num_nodes));
-    assert((src.cost >= 0) && (src.cost <= 1.0));
-    assert((dst.cost >= 0) && (dst.cost <= 1.0));
     assert(src.id != dst.id);
 
     // Sanity check: Ensure no duplicate edges exist

@@ -41,14 +41,10 @@ public:
         // Form another loop
         graph_->add_edge(4, 5);
         graph_->add_edge(5, 6);
-
-        // Update STP convergence parameters
-        root_hello_interval_ms_ = 100; // 100 ms
-        reelection_interval_ms_ = 1000; // 1 second
     }
 
     virtual error_code run(orchestrator& o) override {
-        sleep(5); // Wait for STP convergence
+        await_convergence(); // Await STP convergence
 
         // Subscribe to packets from all nodes
         for (uint16_t i = 0; i < graph_->num_nodes; i++) {
@@ -58,19 +54,19 @@ public:
         for (uint16_t i = 0; i < 4; i++) {
             DIE_ON_ERROR(o.send_packet(3, 0, PACKET_TYPE_FLOOD));
         }
-        sleep(5); // Wait for packets to propagate
+        await_packet_propagation();
 
         // Disconnect a few links in the network
         DIE_ON_ERROR(o.change_link_state(2, 3, false));
         DIE_ON_ERROR(o.change_link_state(2, 4, false));
         DIE_ON_ERROR(o.change_link_state(2, 5, false));
-        sleep(5); // Wait for STP reconvergence
+        await_convergence(); // Await STP reconvergence
 
         // Now try a leaf node as source
         for (uint16_t i = 0; i < 2; i++) {
             DIE_ON_ERROR(o.send_packet(4, 0, PACKET_TYPE_FLOOD));
         }
-        sleep(5); // Wait for packets to propagate
+        await_packet_propagation();
         return error_code::NONE;
     }
 

@@ -34,7 +34,7 @@ public:
     }
 
     virtual error_code run(orchestrator& o) override {
-        sleep(5); // Wait for STP convergence
+        await_convergence(); // Await STP convergence
 
         // Subscribe to packets from all nodes
         for (uint16_t i = 0; i < graph_->num_nodes; i++) {
@@ -48,7 +48,7 @@ public:
                 DIE_ON_ERROR(o.send_packet(1, 0, PACKET_TYPE_FLOOD));
             }
         }
-        sleep(5); // Wait for packets to propagate
+        await_packet_propagation();
         return error_code::NONE;
     }
 

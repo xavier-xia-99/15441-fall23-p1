@@ -33,14 +33,10 @@ public:
                                   {1, 2, 3, 4, 5, 6, 7});
 
         graph_->set_mixaddrs({2, 13, 14, 15, 4, 21, 22, 23});
-
-        // Update STP convergence parameters
-        root_hello_interval_ms_ = 100; // 100 ms
-        reelection_interval_ms_ = 1000; // 1 second
     }
 
     virtual error_code run(orchestrator& o) override {
-        sleep(5); // Wait for STP convergence
+        await_convergence(); // Await STP convergence
 
         // Subscribe to packets from all nodes
         for (uint16_t i = 0; i < graph_->num_nodes; i++) {
@@ -48,18 +44,18 @@ public:
         }
         // Try the root as source
         DIE_ON_ERROR(o.send_packet(0, 0, PACKET_TYPE_FLOOD));
-        sleep(5); // Wait for packets to propagate
+        await_packet_propagation();
 
         // Disconnect the root from the topology
         for (uint16_t i = 1; i < graph_->num_nodes; i++) {
             DIE_ON_ERROR(o.change_link_state(0, i, false));
         }
-        sleep(5); // Wait for STP reconvergence
+        await_convergence(); // Await STP reconvergence
 
         // Now try two nodes of the ring as source
         DIE_ON_ERROR(o.send_packet(1, 0, PACKET_TYPE_FLOOD));
         DIE_ON_ERROR(o.send_packet(4, 0, PACKET_TYPE_FLOOD));
-        sleep(5); // Wait for packets to propagate
+        await_packet_propagation();
 
         return error_code::NONE;
     }
