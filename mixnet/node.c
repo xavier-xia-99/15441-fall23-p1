@@ -235,7 +235,8 @@ void run_node(void *const handle,
                         // initializes graph's for my own thing
                         for (int i = 0; i < config.num_neighbors; i++) {
                             // make this struct to stuff in
-                            node->graph[node->my_addr][i] = malloc(sizeof(mixnet_lsa_link_params));
+                            // CAST (mixnet_lsa_link_params*)
+                            node->graph[node->my_addr][i] =  (mixnet_lsa_link_params*) malloc(sizeof(mixnet_lsa_link_params));
                             node->graph[node->my_addr][i]->neighbor_mixaddr = node->neighbors_addy[i];
                             node->graph[node->my_addr][i]->cost = node->neighbors_cost[i];
                         }
@@ -310,7 +311,8 @@ void receive_and_send_LSA(mixnet_packet* LSA_packet, void* handle , struct Node 
         mixnet_address neighbor_addr = nb_link_params[i].neighbor_mixaddr;
         uint16_t cost = nb_link_params[i].cost;
 
-        node->graph[node_addr][i] = malloc(sizeof(mixnet_lsa_link_params));
+        // CAST (mixnet_lsa_link_params*)
+        node->graph[node_addr][i] =  (mixnet_lsa_link_params*) malloc(sizeof(mixnet_lsa_link_params));
         node->graph[node_addr][i]->neighbor_mixaddr = neighbor_addr;
         node->graph[node_addr][i]->cost = cost;
     }
