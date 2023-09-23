@@ -364,9 +364,13 @@ void print_node(struct Node *node) {
     }
     printf("--------------Printing Node [#%d] Complete!--------------\n",node->my_addr);
 }
-
+// Prints out graph of node
 void print_graph(struct Node* node){
-
+    printf("GRAPH of Node [#%d]! \n", node->my_addr);
+    for (int i = 0; i < node->num_neighbors; i++){
+        printf("Neighbor Index #%d | (Address: %d , Cost: %d ) \n", i, node->graph[node->my_addr][i].neighbor_mixaddr, node->graph[node->my_addr][i].cost);
+    }
+    printf("GRAPH of Node [#%d] Complete! \n", node->my_addr);
 }
 
   /**
