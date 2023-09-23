@@ -10,7 +10,7 @@
 
  
 mixnet_packet* initialize_STP_packet(mixnet_address root_address,
-                                   u_int16_t path_length,
+                                   uint16_t path_length,
                                    mixnet_address node_address) {
                                     
   mixnet_packet *stp_packet = (mixnet_packet *)malloc(
@@ -88,7 +88,7 @@ mixnet_packet* initialize_LSA_packet(mixnet_address node_addr, uint8_t nb_count,
   //TODO : Check if this is correct
   LSA_packet->total_size = 12 + 4 + 4 * nb_count;
   LSA_packet->type = PACKET_TYPE_LSA;
-
+ 
   // Allocating Payload 
   mixnet_packet_lsa *LSA_payload =
       (mixnet_packet_lsa *)malloc(sizeof(mixnet_packet_lsa) + sizeof(mixnet_lsa_link_params) * nb_count);
@@ -108,7 +108,7 @@ mixnet_packet* initialize_LSA_packet(mixnet_address node_addr, uint8_t nb_count,
 
   // Attach to the LSA_Packet
   memcpy((void *)LSA_packet->payload, (void *)LSA_payload,
-         sizeof(LSA_payload));
+         sizeof(mixnet_packet_lsa) + sizeof(mixnet_lsa_link_params) * nb_count);
 
   return LSA_packet;
 }
