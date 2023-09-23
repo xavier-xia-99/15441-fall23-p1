@@ -21,19 +21,33 @@
 #include <time.h>
 
 
+
+
+//structure of our Node 
 struct Node {
   uint8_t num_neighbors;  // number of neighbors
-  int16_t *neighbors_addy; // Array of neighbors
+  int32_t *neighbors_addy; // Array of neighbors (mixnet address)
+  uint16_t *neighbors_cost;
   bool *neighbors_blocked; // Block of neighbors (false is unblocked)
 
   mixnet_address root_addr; // root addr
   mixnet_address my_addr; // self addr
   mixnet_address next_hop; // Next hop
   int path_len;
+
+  
+  //how to use graph
+  mixnet_lsa_link_params graph[1 << 16][1 << 8]; // 2^16 nodes, 2^8 List : []]
+    // graph[i][j] -> 
+//   mixnet_address **FIB // List of [Path := List of mixnet_address]
+
+  // TODO: add structs
+
 };
 
 
-// Found in DATA and PING Packet
+
+//TODO: REMOVE 
 struct RoutingHeader {
     mixnet_address src_addr; // given by user of mixnet_node
     mixnet_address dest_addr; // given by user of mixnet_node
@@ -42,56 +56,18 @@ struct RoutingHeader {
 };
 
 
-
-
-
 // Declare functions
 void receive_and_update(void *const handle, struct Node *node);
 // void send_packet(void *const handle, struct node *node, enum mixnet_packet_type_enum type, uint16_t sender_port);
 bool receive_STP(struct Node *currNode, uint8_t i, mixnet_packet *stp_packet, void *const handle);
 
-  /**
-   * @brief This function is called send STP constatnly
-   *
-   * @param handle
-   * @param node
-   */
-void send_STP(void *const handle, struct Node *node) {
-    //initialize a packet and send to all neighbors
-    //don't have to bother w blocks, stp should send everywhere
-    //don't need send last one. last one is user
-    for (int i = 0; i < node->num_neighbors; i++) {
-        // printf("Sending out STP to %d \n", node->neighbors_addy[i]);
-        mixnet_packet* discover_packet = initialize_STP_packet(node->root_addr,node->path_len,node->my_addr);
-        // print_packet(discover_packet);
-        mixnet_send(handle, i, discover_packet); //TODO
-    }
+
+uint32_t get_time_in_ms(void) {
+    struct timespec time;
+    clock_gettime(CLOCK_MONOTONIC, &time);
+    return (time.tv_sec * 1000) + (time.tv_nsec / 1000000);
 }
 
-
-  /**
-   * @brief This function sends Flood Packet, and takes note of the sender port
-   *
-   * @param handle
-   * @param node
-   * @param sender_port (do not send back)
-   */
-void send_FLOOD(void *const handle, struct Node *node, uint16_t sender_port) {
-        // printf("------Node #%u 's NB_INDX:%d sent FLOOD------------\n", node->my_addr, sender_port);
-        for (int i = 0; i < node->num_neighbors; i++) {
-                if (!node->neighbors_blocked[i] && i != sender_port){
-                    // printf("Sending out FLOOD to NB_INDX:%u | addr:%u \n", i, (unsigned int)node->neighbors_addy[i]);
-                    mixnet_packet* flood_packet = initialize_FLOOD_packet(node->root_addr,node->path_len,node->my_addr);
-                    mixnet_send(handle, i, flood_packet); //TODO error_handling
-                }
-        }
-
-        // Always send to my user, unless I received it from the user!
-        if (sender_port != node->num_neighbors){
-            mixnet_packet* flood_packet = initialize_FLOOD_packet(node->root_addr,node->path_len,node->my_addr);
-            mixnet_send(handle, node->num_neighbors, flood_packet);
-        }
-    }
 
 /**
  * @brief This function is entrance point into each node
@@ -100,12 +76,6 @@ void send_FLOOD(void *const handle, struct Node *node, uint16_t sender_port) {
  * @param keep_running 
  * @param c 
  */
-
-uint32_t get_time_in_ms(void) {
-    struct timespec time;
-    clock_gettime(CLOCK_MONOTONIC, &time);
-    return (time.tv_sec * 1000) + (time.tv_nsec / 1000000);
-}
 void run_node(void *const handle,
               volatile bool *const keep_running,
               const struct mixnet_node_config config) {
@@ -113,12 +83,16 @@ void run_node(void *const handle,
     (void) config;
     (void) handle;
 
-    // print_node_config(config);
-    // Initialize Node
+    // Initialize Node from the handle
     struct Node* node = malloc(sizeof(struct Node));
     node->num_neighbors = config.num_neighbors;
     node->neighbors_addy = malloc(sizeof(int) * config.num_neighbors);
     node->neighbors_blocked = malloc(sizeof(bool) * config.num_neighbors);
+    node->neighbors_cost = config.link_costs;
+    
+    // node->FIB = malloc(sizeof(mixnet_address) * config.num_neighbors);
+
+
     if (node->neighbors_addy == NULL || node->neighbors_blocked == NULL) {
         exit(1);
     }
@@ -143,9 +117,10 @@ void run_node(void *const handle,
     uint32_t heartbeat_time = get_time_in_ms();
     // printf("Starting time: %d \n", start_time);
 
-    //allocate chunk of memory
+    //allocate chunk of memory for buffer
     mixnet_packet *packet_buffer =
         (mixnet_packet *)malloc(sizeof(MAX_MIXNET_PACKET_SIZE));
+
     if (packet_buffer == NULL) {
         exit(1);
     }
@@ -153,6 +128,13 @@ void run_node(void *const handle,
     // uint8_t node_id = node->my_addr; 
 
     while(*keep_running) {
+
+        //check if keep running is true
+        if (!(*keep_running)) {
+            printf("Keep running not true anymore. break!");
+            break;
+        }
+
         uint8_t port;
         bool recv = mixnet_recv(handle, &port, &packet_buffer);
 
@@ -181,44 +163,121 @@ void run_node(void *const handle,
             // printf("Packet Type : %s \n", get_packet_type(packet_buffer));
             // printf("RECEIVED Packet! \n");
 
-            mixnet_packet_stp *update = (mixnet_packet_stp *)malloc(sizeof(mixnet_packet_stp));
-            memcpy((void *)update, (void *)packet_buffer->payload,
-    sizeof(mixnet_packet_stp));
-        // uint16_t sender_id = update->node_address;
-        // free(update);
+            if (packet_buffer->type == PACKET_TYPE_STP || packet_buffer->type == PACKET_TYPE_FLOOD) {
+                // Copying Payload over for STP/Flood Types
+                mixnet_packet_stp *update = (mixnet_packet_stp *)malloc(sizeof(mixnet_packet_stp));
+                memcpy((void *)update, (void *)packet_buffer->payload,  sizeof(mixnet_packet_stp));
 
-        // else {
-        //     printf("Received from other neighbours @ NB_INDX:%u \n", port);
-        // }
-        //     //
-            if (packet_buffer->type == PACKET_TYPE_STP) {
-                if (update->root_address == node->root_addr && update->path_length + 1 == node->path_len && update->node_address == node->next_hop) {
-                    // mixnet_packet* new_packet = initialize_STP_packet(node->root_addr,node->path_len,node->my_addr);
-                    // mixnet_send(handle, port, new_packet);
-                    send_STP(handle, node);
-                    re_election_time = get_time_in_ms(); 
-                    } 
-                else {
-                    receive_STP(node, port, packet_buffer, handle);
+                if (packet_buffer->type == PACKET_TYPE_STP){
+                    if (update->root_address == node->root_addr && update->path_length + 1 == node->path_len && update->node_address == node->next_hop) {
+                        // mixnet_packet* new_packet = initialize_STP_packet(node->root_addr,node->path_len,node->my_addr);
+                        // mixnet_send(handle, port, new_packet);
+                        send_STP(handle, node);
+                        re_election_time = get_time_in_ms(); 
+                        } 
+                    else {
+                        receive_STP(node, port, packet_buffer, handle);
+                    }
+                }
+
+                else if (packet_buffer->type == PACKET_TYPE_FLOOD){
+                    if (port == node->num_neighbors) {
+                        num_user_packets++;
+                        // printf("Received FLOOD from user! \n");
+                        
+                        // initializes graph's for my own thing
+                        for (int i = 0; i < config.num_neighbors; i++) {
+                            // make this struct to stuff in
+                            node->graph[node->my_addr][i].neighbor_mixaddr = node->neighbors_addy[i];
+                            node->graph[node->my_addr][i].cost = node->neighbors_cost[i];
+                        }
+                        
+                        //send out my own LSA_packet once only! hehe!
+
+                        mixnet_packet* LSA_packet = initialize_LSA_packet(node->my_addr, node->num_neighbors, node->neighbors_addy, node->neighbors_cost);
+                        for (int i = 0; i < node->num_neighbors; i++) {
+                            if (!node->neighbors_blocked[i]){
+                                // printf("Sending out FLOOD to NB_INDX:%u | addr:%u \n", i, (unsigned int)node->neighbors_addy[i]);
+                                mixnet_send(handle, i, LSA_packet); //TODO error_handling
+                            }
+                        }
+                        
+                        send_FLOOD(handle, node, port);
+                        } 
+                    else if (!node->neighbors_blocked[port]){
+                        send_FLOOD(handle, node, port);
+                        }
                 }
             }
-
-            else if (packet_buffer->type == PACKET_TYPE_FLOOD){
-                if (port == node->num_neighbors) {
-                    num_user_packets++;
-                    // printf("Received FLOOD from user! \n");
-                    send_FLOOD(handle, node, port);
-                    } 
-                else if (!node->neighbors_blocked[port]){
-                    send_FLOOD(handle, node, port);
+            // LSA Packets Handling
+            else if (packet_buffer->type == PACKET_TYPE_LSA){
+                
+                // If received from unblocked ports and not from user   
+                if (!node->neighbors_blocked[port] && port != node->num_neighbors){
+                    receive_and_send_LSA(packet_buffer, handle, node, port);
+                    // receive_LSA (send out to those not blocked)
                     }
-                //only send to other neighbors
-                }
+            }
+
+            // TODO : Packets that uses Routing Headers
+            else {
+                assert(packet_buffer->type == PACKET_TYPE_DATA || packet_buffer->type == PACKET_TYPE_PING);
+                printf("Received Data/Ping Packet! \n");
+            }
+
         }
     }
     printf("\n Node[#%d] Stats: \n | Received %d user packets | Node[#%d] stopped running \n", node->my_addr, num_user_packets, node->my_addr);
     // print_node(node);
 }
+
+// @TODO : Receives LSA : (1) Update Link State, (2) Sends Out to Unblocked Ports
+void receive_and_send_LSA(mixnet_packet* LSA_packet, void* handle , struct Node * node, uint16_t sender_port){
+    assert(!node->neighbors_blocked[sender_port] && sender_port != node->num_neighbors);
+    assert(LSA_packet->type == PACKET_TYPE_LSA);
+
+
+    // (1) Update Link State using nb_link_params
+    mixnet_packet_lsa *lsa_header = (mixnet_packet_lsa *)malloc(sizeof(mixnet_packet_lsa));
+    if (lsa_header == NULL) {
+        exit(1);
+    }
+    memcpy((void *)lsa_header, (void *)LSA_packet->payload,  sizeof(mixnet_packet_lsa));
+
+    // [2] Allocate Space dynamically for the #nbs * link_params
+    unsigned long nb_size = sizeof(mixnet_lsa_link_params) * lsa_header->neighbor_count;
+
+    // Copy all nb's link_params over
+    mixnet_lsa_link_params* nb_link_params = (mixnet_lsa_link_params *)malloc(nb_size);
+    if (nb_link_params == NULL) {
+        exit(1);
+    }
+    memcpy((void *)nb_link_params, (void *)lsa_header->links,  sizeof(mixnet_lsa_link_params) * lsa_header->neighbor_count);
+
+    // Update Graph based on my state
+    for (int i = 0; i < lsa_header->neighbor_count; i++) {
+        // make this struct to stuff in
+        mixnet_address node_addr = lsa_header->node_address;
+        mixnet_address neighbor_addr = nb_link_params[i].neighbor_mixaddr;
+        uint16_t cost = nb_link_params[i].cost;
+        node->graph[node_addr][i].neighbor_mixaddr = neighbor_addr;
+        node->graph[node_addr][i].cost = cost;
+    }
+
+    // (2) Broadcast Received LSA_packet to Unblocked Ports Only, excluding sender_port
+    for (int i = 0; i < node->num_neighbors; i++) {
+        if (!node->neighbors_blocked[i] && i != sender_port){
+            // printf("Sending out FLOOD to NB_INDX:%u | addr:%u \n", i, (unsigned int)node->neighbors_addy[i]);
+            mixnet_send(handle, i, LSA_packet); //TODO error_handling
+        }
+    }
+    
+}
+
+// @TODO: Takes in a Node's Struct and (1) runs Dijsktra's Algorithm on its Graph and Update the FIB (2)
+// void run_dijsktra(struct Node * node){
+    
+// }
 
 
 // Does not reach this function at all
@@ -270,7 +329,7 @@ bool receive_STP(struct Node * currNode, uint8_t port, mixnet_packet* stp_packet
             }
 
         }
-        // ======================= BLOCK LOGIC =======================
+    // ======================= BLOCK LOGIC =======================
         // Parent is unblocked
         if (update->node_address == currNode->next_hop){
             currNode->neighbors_blocked[port] = false; 
@@ -285,12 +344,11 @@ bool receive_STP(struct Node * currNode, uint8_t port, mixnet_packet* stp_packet
         else {
             currNode->neighbors_blocked[port] = true;
         }
-        // ======================= BLOCK LOGIC =======================
+    // ======================= BLOCK LOGIC =======================
         
     }
     return true;
 }
-
 
 
 void print_node(struct Node *node) {
@@ -306,3 +364,52 @@ void print_node(struct Node *node) {
     }
     printf("--------------Printing Node [#%d] Complete!--------------\n",node->my_addr);
 }
+
+void print_graph(struct Node* node){
+
+}
+
+  /**
+   * @brief This function is called send STP constantly
+   *     initialize a packet and send to all neighbors
+   *     don't have to bother w blocks, stp should send everywhere
+   *     node->num_neighbors is the port for the user itself
+   *
+   * @param handle
+   * @param node
+   */
+void send_STP(void *const handle, struct Node *node) {
+
+   
+    for (int i = 0; i < node->num_neighbors; i++) {
+        // printf("Sending out STP to %d \n", node->neighbors_addy[i]);
+        mixnet_packet* discover_packet = initialize_STP_packet(node->root_addr,node->path_len,node->my_addr);
+        // print_packet(discover_packet);
+        mixnet_send(handle, i, discover_packet); 
+    }
+}
+
+
+  /**
+   * @brief This function sends Flood Packet, and takes note of the sender port. 
+   *
+   * @param handle
+   * @param node
+   * @param sender_port (do not send back)
+   */
+void send_FLOOD(void *const handle, struct Node *node, uint16_t sender_port) {
+        // printf("------Node #%u 's NB_INDX:%d sent FLOOD------------\n", node->my_addr, sender_port);
+        for (int i = 0; i < node->num_neighbors; i++) {
+                if (!node->neighbors_blocked[i] && i != sender_port){
+                    // printf("Sending out FLOOD to NB_INDX:%u | addr:%u \n", i, (unsigned int)node->neighbors_addy[i]);
+                    mixnet_packet* flood_packet = initialize_FLOOD_packet(node->root_addr,node->path_len,node->my_addr);
+                    mixnet_send(handle, i, flood_packet); //TODO error_handling
+                }
+        }
+
+        // Always send to my user, unless I received it from the user!
+        if (sender_port != node->num_neighbors){
+            mixnet_packet* flood_packet = initialize_FLOOD_packet(node->root_addr,node->path_len,node->my_addr);
+            mixnet_send(handle, node->num_neighbors, flood_packet);
+        }
+    }

@@ -78,32 +78,38 @@ mixnet_packet* initialize_FLOOD_packet(mixnet_address root_address,
   return stp_packet;
 }
 
-// TODO : CHECK IF THIS IS CORRECT
-// 2^8 (nb, cost) pairs possible
+// [DONE..]
+mixnet_packet* initialize_LSA_packet(mixnet_address node_addr, uint8_t nb_count, mixnet_address* nb_addrs, uint16_t* nb_costs ){
 
-// typedef struct mixnet_lsa_link_params {
-//     mixnet_address neighbor_mixaddr;    // Link partner's mixnet address
-//     uint16_t cost;                      // Cost of routing on this link
-mixnet_packet* initialize_LSA_packet(mixnet_address node_addr, uint8_t nb_count,  mixnet_address* neighbor_mixaddr, uint16_t* cost   ){
-
+  // Init to Max
   mixnet_packet *LSA_packet = (mixnet_packet *)malloc(
       sizeof(mixnet_packet) + sizeof(4 + 4 * MAX_MIXNET_ROUTE_LENGTH));
 
+  //TODO : Check if this is correct
   LSA_packet->total_size = 12 + 4 + 4 * nb_count;
   LSA_packet->type = PACKET_TYPE_LSA;
 
-  // Allocating according to nb_count
+  // Allocating Payload 
   mixnet_packet_lsa *LSA_payload =
       (mixnet_packet_lsa *)malloc(sizeof(mixnet_packet_lsa) + sizeof(mixnet_lsa_link_params) * nb_count);
 
+  mixnet_lsa_link_params* nb_links_params = (mixnet_lsa_link_params *)malloc(sizeof(mixnet_lsa_link_params) * nb_count);
+  
+  // Combine them into the struct
+  for (int i = 0; i < nb_count; i++) {
+    nb_links_params[i].neighbor_mixaddr = nb_addrs[i];
+    nb_links_params[i].cost = nb_costs[i];
+  }
+
+  // Fill up the paylod
   LSA_payload->node_address = node_addr;
   LSA_payload->neighbor_count = nb_count;
+  memcpy((void*)LSA_payload->links, (void*)nb_links_params, sizeof(mixnet_lsa_link_params) * nb_count);
 
-  // Can we just assign as an array
-  for (int i = 0; i < nb_count; i++) {
-    LSA_payload->links[i].neighbor_mixaddr = neighbor_mixaddr[i];
-    LSA_payload->links[i].cost = cost[i];
-  }
+  // Attach to the LSA_Packet
+  memcpy((void *)LSA_packet->payload, (void *)LSA_payload,
+         sizeof(LSA_payload));
+
   return LSA_packet;
 }
 
@@ -112,7 +118,6 @@ mixnet_packet* initialize_DATA_packet(mixnet_packet_routing_header* routing_head
     // Init to Max
     mixnet_packet *DATA_packet = (mixnet_packet *)malloc(
       sizeof(MAX_MIXNET_PACKET_SIZE));
-
 
     DATA_packet->total_size = 12 + sizeof(mixnet_packet_routing_header) + sizeof(data);
     DATA_packet->type = PACKET_TYPE_DATA;
@@ -125,8 +130,6 @@ mixnet_packet* initialize_DATA_packet(mixnet_packet_routing_header* routing_head
     // DATA_payload->data = data;
 
     return DATA_packet;    
-
-
 
 }
 
@@ -169,16 +172,18 @@ void print_packet(mixnet_packet *packet) {
     }
 }
 
-
-
 char* get_packet_type(mixnet_packet *packet) {
     switch (packet->type) {
         case PACKET_TYPE_STP:
         return "STP";
         case PACKET_TYPE_FLOOD:
         return "FLOOD";
+        case PACKET_TYPE_LSA:
+        return "LSA";
         case PACKET_TYPE_DATA:
         return "DATA";
+        case PACKET_TYPE_PING:
+        return "PING";
         default :
         return "ERROR WITH PACKET TYPE!";
     }
