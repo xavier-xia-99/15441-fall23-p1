@@ -80,38 +80,36 @@ mixnet_packet* initialize_FLOOD_packet(mixnet_address root_address,
 
 // [DONE..]
 mixnet_packet* initialize_LSA_packet(mixnet_address node_addr, uint8_t nb_count, mixnet_address* nb_addrs, uint16_t* nb_costs ){
-
-  // Init to Max
-  mixnet_packet *LSA_packet = (mixnet_packet *)malloc(
-      sizeof(mixnet_packet) + sizeof(4 + 4 * MAX_MIXNET_ROUTE_LENGTH));
-
-  //TODO : Check if this is correct
-  LSA_packet->total_size = 12 + 4 + 4 * nb_count;
-  LSA_packet->type = PACKET_TYPE_LSA;
- 
-  // Allocating Payload 
-  mixnet_packet_lsa *LSA_payload =
-      (mixnet_packet_lsa *)malloc(sizeof(mixnet_packet_lsa) + sizeof(mixnet_lsa_link_params) * nb_count);
-
-  mixnet_lsa_link_params* nb_links_params = (mixnet_lsa_link_params *)malloc(sizeof(mixnet_lsa_link_params) * nb_count);
   
-  // Combine them into the struct
-  for (int i = 0; i < nb_count; i++) {
-    nb_links_params[i].neighbor_mixaddr = nb_addrs[i];
-    nb_links_params[i].cost = nb_costs[i];
+  
+  mixnet_packet *LSA_packet = (mixnet_packet *)malloc(sizeof(mixnet_packet) + 4 + 4 * nb_count);
+  if (LSA_packet == NULL) {
+    printf("damn");
+    return NULL;
   }
 
-  // Fill up the paylod
-  LSA_payload->node_address = node_addr;
-  LSA_payload->neighbor_count = nb_count;
-  memcpy((void*)LSA_payload->links, (void*)nb_links_params, sizeof(mixnet_lsa_link_params) * nb_count);
+  LSA_packet->total_size = 12 + 4 + 4 * nb_count;
+  LSA_packet->type = PACKET_TYPE_LSA;
 
-  // Attach to the LSA_Packet
-  memcpy((void *)LSA_packet->payload, (void *)LSA_payload,
-         sizeof(mixnet_packet_lsa) + sizeof(mixnet_lsa_link_params) * nb_count);
+  mixnet_packet_lsa *contents = (mixnet_packet_lsa *)malloc(sizeof(mixnet_packet_lsa) + sizeof(mixnet_lsa_link_params) * nb_count);
+  if (contents == NULL) {
+    printf("damn");
+    return NULL;
+  }
+
+  for (int i = 0; i < nb_count; i++) {
+    contents->links[i].neighbor_mixaddr = nb_addrs[i];
+    contents->links[i].cost = nb_costs[i];
+  }
+
+  contents->node_address = node_addr;
+  contents->neighbor_count = nb_count;
+
+  memcpy((void *)LSA_packet->payload, (void *)contents, sizeof(mixnet_packet_lsa) + sizeof(mixnet_lsa_link_params) * nb_count);
 
   return LSA_packet;
 }
+
 
 // TODO : IMPL
 // mixnet_packet* initialize_DATA_packet(mixnet_packet_routing_header* routing_header, void* data){
