@@ -44,7 +44,7 @@ mixnet_packet* initialize_STP_packet(mixnet_address root_address,
 }
 
 mixnet_packet* initialize_FLOOD_packet(mixnet_address root_address,
-                                   u_int16_t path_length,
+                                   uint16_t path_length,
                                    mixnet_address node_address) {
                                     
   mixnet_packet *stp_packet = (mixnet_packet *)malloc(
@@ -78,7 +78,7 @@ mixnet_packet* initialize_FLOOD_packet(mixnet_address root_address,
   return stp_packet;
 }
 
-// [DONE..]
+// [DONE?]
 mixnet_packet* initialize_LSA_packet(mixnet_address node_addr, uint8_t nb_count, mixnet_address* nb_addrs, uint16_t* nb_costs ){
   
   
@@ -111,26 +111,44 @@ mixnet_packet* initialize_LSA_packet(mixnet_address node_addr, uint8_t nb_count,
 }
 
 
+
 // TODO : IMPL
-// mixnet_packet* initialize_DATA_packet(mixnet_packet_routing_header* routing_header, void* data){
-//     // Init to Max
-//     mixnet_packet *DATA_packet = (mixnet_packet *)malloc(
-//       sizeof(MAX_MIXNET_PACKET_SIZE));
+mixnet_packet* initialize_DATA_packet(mixnet_address* best_paths, mixnet_address dst_address, mixnet_address src_address, char* data){
+    // Init to Max
+    mixnet_packet *DATA_packet = (mixnet_packet *)malloc(
+      sizeof(MAX_MIXNET_PACKET_SIZE));
 
 
-//     DATA_packet->total_size = 12 + sizeof(mixnet_packet_routing_header) + sizeof(data);
-//     DATA_packet->type = PACKET_TYPE_DATA;
-//     // memcpy(DATA_packet->payload, routing_header, sizeof(mixnet_packet_routing_header));
-//     // // Allocating according to nb_count
-//     // mixnet_packet_data *DATA_payload =
-//     //     (mixnet_packet_data *)malloc(sizeof(mixnet_packet_data) + sizeof(mixnet_packet_routing_header) + sizeof(data));
+    DATA_packet->total_size = 12 + sizeof(mixnet_packet_routing_header) + sizeof(data);
+    DATA_packet->type = PACKET_TYPE_DATA;
 
-//     // DATA_payload->routing_header = *routing_header;
-//     // DATA_payload->data = data;
+    mixnet_packet_routing_header *routing_header = (mixnet_packet_routing_header *)malloc(sizeof(mixnet_packet_routing_header));
+    routing_header->dst_address = dst_address;
+    routing_header->src_address = src_address;
+    //
+    int path_len = 0;
+    mixnet_address* new_path = (mixnet_address *)malloc(sizeof(best_paths));
+    
+    for (int i = 0; i < MAX_MIXNET_ROUTE_LENGTH; i++) {
+      if (best_paths[i] == 0) {
+          break;
+      }
+      path_len ++;
+      new_path[i] = best_paths[i];
+    }
+    routing_header->path_length = path_len;
+    
+    // memcpy(DATA_packet->payload, routing_header, sizeof(mixnet_packet_routing_header));
+    // // Allocating according to nb_count
+    // mixnet_packet_data *DATA_payload =
+    //     (mixnet_packet_data *)malloc(sizeof(mixnet_packet_data) + sizeof(mixnet_packet_routing_header) + sizeof(data));
 
-//     return DATA_packet;    
+    // DATA_payload->routing_header = *routing_header;
+    // DATA_payload->data = data;
 
-// }
+    return DATA_packet;    
+
+}
 
 
 // TODO : add support for custom message

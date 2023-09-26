@@ -8,6 +8,8 @@
  * No part of the Mixnet project may be copied and/or distributed
  * without the express permission of the 15-441/641 course staff.
  */
+
+ 
 #include "node.h"
 
 #include "connection.h"
@@ -20,7 +22,7 @@
 #include <string.h>
 #include <time.h>
 
-
+#define INF 0xFFFF
 
 
 //structure of our Node 
@@ -29,19 +31,20 @@ struct Node {
   int32_t *neighbors_addy; // Array of neighbors (mixnet address)
   uint16_t *neighbors_cost;
   bool *neighbors_blocked; // Block of neighbors (false is unblocked)
+  
+  int16_t total_neighbors_num;
 
+  mixnet_address* global_best_path[1 << 16][1 << 8]; // List of [Path := List of mixnet_address
+ 
   mixnet_address root_addr; // root addr
   mixnet_address my_addr; // self addr
   mixnet_address next_hop; // Next hop
   int path_len;
 
-  
   //how to use graph
   mixnet_lsa_link_params* graph[1 << 16][1 << 8]; // 2^16 nodes, 2^8 List : []]
     // graph[i][j] -> 
 //   mixnet_address **FIB // List of [Path := List of mixnet_address]
-
-  // TODO: add structs
 
 };
 
@@ -62,6 +65,7 @@ void receive_and_update(void *const handle, struct Node *node);
 // void send_packet(void *const handle, struct node *node, enum mixnet_packet_type_enum type, uint16_t sender_port);
 bool receive_STP(struct Node *currNode, uint8_t i, mixnet_packet *stp_packet, void *const handle);
 void receive_and_send_LSA(mixnet_packet* LSA_packet, void* handle , struct Node * node, uint16_t sender_port);
+void dijkstra(struct Node * node);
 
   /**
    * @brief This function is called send STP constantly
@@ -106,6 +110,17 @@ void send_FLOOD(void *const handle, struct Node *node, uint16_t sender_port) {
         }
     }
 
+void extend_outer_array(mixnet_lsa_link_params ***array, int old_size, int new_size) {
+    *array = realloc(*array, new_size * sizeof(mixnet_lsa_link_params *));
+    for (int i = old_size; i < new_size; ++i) {
+        (*array)[i] = NULL;  // Initialize new pointers to NULL
+    }
+}
+
+void extend_inner_array(mixnet_lsa_link_params **array, int old_size, int new_size) {
+    *array = realloc(*array, new_size * sizeof(mixnet_lsa_link_params));
+}
+
 
 
 uint32_t get_time_in_ms(void) {
@@ -132,6 +147,7 @@ void run_node(void *const handle,
     // Initialize Node from the handle
     struct Node* node = malloc(sizeof(struct Node));
     node->num_neighbors = config.num_neighbors;
+    node->total_neighbors_num = node->num_neighbors;
     node->neighbors_addy = malloc(sizeof(int) * config.num_neighbors);
     node->neighbors_blocked = malloc(sizeof(bool) * config.num_neighbors);
     node->neighbors_cost = config.link_costs;
@@ -156,6 +172,7 @@ void run_node(void *const handle,
     node->my_addr = config.node_addr;
     node->next_hop = config.node_addr; // self
     node->path_len = 0;
+
 
     // printf("Node initialized! \n");
 
@@ -208,9 +225,8 @@ void run_node(void *const handle,
                         node->graph[node->my_addr][i]->cost = node->neighbors_cost[i];
                     }
             }
-            
-            
-            // send out my own LSA_packet once only! hehe!
+
+            // Send out my own LSA_packet at the start of heartbeat
             // printf("Initializing LSA \n");
             mixnet_packet* LSA_packet = initialize_LSA_packet(node->my_addr, node->num_neighbors, (mixnet_address*) node->neighbors_addy, node->neighbors_cost);
             // printf("LSA Packet done! \n");
@@ -283,6 +299,51 @@ void run_node(void *const handle,
             // TODO : Packets that uses Routing Headers
             else {
                 assert(packet_buffer->type == PACKET_TYPE_DATA || packet_buffer->type == PACKET_TYPE_PING);
+                dijkstra(node);
+
+                //node->best path is the best path to any node from my current node.
+                
+                if (packet_buffer->type == PACKET_TYPE_DATA){
+
+                    //if user sent packet, route length will be 0, need to compute route adn intialize routing header + copy packet data after
+                    if (port == node->num_neighbors){
+                        uint16_t totalsize = packet_buffer->total_size;
+    //                   Finally, for DATA packets, the
+    //  *                data will appear after the Routing Header (RH) assuming
+    //  *                zero hops (i.e., at the `route` field of mixnet_packet_
+    //  *                routing_header). You must fix-up the payload structure
+    //  *                after you compute the source route and hop count.
+
+                        //-------------------------------------parsing-------------------------------
+
+                        //this should be pointer to payload
+                        mixnet_address src_address, dest_address;
+                        memcpy(&src_address, packet_buffer->payload, sizeof(mixnet_address));
+                        memcpy(&dest_address, packet_buffer->payload + sizeof(mixnet_address), sizeof(mixnet_address));
+                        char* data = (char*) malloc(MAX_MIXNET_DATA_SIZE);
+                        
+                        //can i just cpy max_mixnet_data size over?
+                        memcpy(data, packet_buffer->payload + 2 * sizeof(mixnet_address) + 2 * sizeof(uint16_t), MAX_MIXNET_DATA_SIZE);
+
+                        mixnet_address** best_paths = node->global_best_path[dest_address];
+                        
+                        mixnet_packet* final_data_packet = initialize_DATA_packet(best_paths, dest_address, src_address, data);
+
+
+
+
+                        
+
+                    }
+
+
+                    
+                }
+
+                else if (packet_buffer->type == PACKET_TYPE_PING){
+
+                }
+
                 printf("Received Data/Ping Packet! \n");
             }
 
@@ -294,11 +355,122 @@ void run_node(void *const handle,
     // print_node(node);
 }
 
+
+void dijkstra(struct Node * node){
+
+    //run t hrough the old graph, for every neighbor node that's not myself
+
+    //where i've visited
+    bool visited[1<<16];
+    //lowest distance at each side
+    uint16_t distance[1<<16];
+    //for each side the update, what's the lowest possible
+    mixnet_address prev_neighbor[1<<16];
+
+
+    for (int i = 0; i < (1<<16); i++) {
+        visited[i] = false;
+        distance[i] = UINT16_MAX;
+        // prev_neighbor[i] = NULL; // 
+    }
+
+    int visitedCount = 1;
+    //source, set as 0
+    distance[node->my_addr] = 0;
+    visited[node->my_addr] = true;
+    mixnet_address curr_node = node->my_addr;
+
+    while (visitedCount < node->total_neighbors_num){
+
+        // process edges of curr_node, update distance if smaller
+        // (rmbr put prev also if updated)
+
+        for (int j = 0; j < (1<<8); j++){
+            if (node->graph[curr_node][j] != NULL){
+                 //this is checking_addy of wtv we're going to
+                  mixnet_address nb_node = node->graph[curr_node][j]->neighbor_mixaddr;
+ 
+                  // skip if visited
+                  if (visited[nb_node]) {
+                    continue; 
+                  }
+
+                  //this is just cost of getting to this addy from the one im at now, need to add with the original one(how i got here)
+                    
+                  uint16_t cur_cost = node->graph[nb_node][j]
+                  ->cost; 
+                  
+                  uint16_t final_cost = 0;
+                  if (distance[curr_node] != UINT16_MAX){
+                    final_cost = cur_cost + distance[curr_node];
+                  }
+                  else {
+                    // only for first edge
+                    final_cost = cur_cost;
+                  }
+
+                  //now we start comparing
+
+                  // Relaxation of weights : check for nb_node, if smaller then update
+                  if (final_cost < distance[nb_node]){
+                    distance[nb_node] = final_cost;
+                    prev_neighbor[nb_node] = curr_node;
+                  }
+            }
+            else {
+                break;
+            }
+        }
+
+        // check through to find smallest thing in frontier
+        uint16_t min_distance = UINT16_MAX;
+        mixnet_address smallestindex = UINT16_MAX;
+
+
+        for (int i = 0; i < (1<<16); i++) {
+            if (visited[i]){
+                continue;
+            }
+            if (distance[i] < min_distance) {
+                min_distance = distance[i];
+                smallestindex = i;
+            }
+        }
+
+        //should have smallest thing in frontier rn in smallest index. visit it.
+        // update the final list of shortest paths (appending by copying over)
+        // get the previous list thing, update all the way in reverse order
+
+
+        mixnet_address prev =  prev_neighbor[smallestindex];
+        node->global_best_path[smallestindex][0] = (mixnet_address*) malloc(sizeof(mixnet_address));
+        *node->global_best_path[smallestindex][0] = prev;
+        
+        // xb : -1 for for out of bounds
+        for (int j = 0; j < (1 << 8) - 1; j ++) {
+            mixnet_address prev_addr = *node->global_best_path[prev][j];
+            if (prev_addr == 0){
+                printf("Breaking since we reached end of prev's path\n");
+                break;
+            }
+            *node->global_best_path[smallestindex][j + 1] = prev_addr;
+        }
+    
+        // update visitedCount
+        visitedCount ++;
+        visited[smallestindex] = true;
+        // update curr_node to that node
+        curr_node = smallestindex;
+        // repeat until visitedCount == total_neighbors_num
+    }
+
+}
+    
+
 // @TODO : Receives LSA : (1) Update Link State, (2) Sends Out to Unblocked Ports
 void receive_and_send_LSA(mixnet_packet* LSA_packet, void* handle , struct Node * node, uint16_t sender_port){
     assert(!node->neighbors_blocked[sender_port] && sender_port != node->num_neighbors);
     assert(LSA_packet->type == PACKET_TYPE_LSA);
-
 
     // (1) Update Link State using nb_link_params
     mixnet_packet_lsa *lsa_header = (mixnet_packet_lsa *)malloc(sizeof(mixnet_packet_lsa));
@@ -329,9 +501,12 @@ void receive_and_send_LSA(mixnet_packet* LSA_packet, void* handle , struct Node 
             node->graph[node_addr][i] = (mixnet_lsa_link_params*) malloc(sizeof(mixnet_lsa_link_params));
             node->graph[node_addr][i]->neighbor_mixaddr = neighbor_addr;
             node->graph[node_addr][i]->cost = cost;
+            node->total_neighbors_num++;
+
+            //run djikstra's here. point is for our graph, we want to find the shortest path to any node_addr
+            //node->global_best_path should contain best path to everything.
         }
     }
-
 
 
     // (2) Broadcast Received LSA_packet to Unblocked Ports Only, excluding sender_port
