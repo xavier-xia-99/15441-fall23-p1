@@ -39,7 +39,7 @@ mixnet_packet* initialize_FLOOD_packet(mixnet_address root_address, uint16_t pat
 // 2^8 (nb, cost) pairs possible
 mixnet_packet* initialize_LSA_packet(mixnet_address node_addr, uint8_t nb_count, mixnet_address* neighbor_mixaddr, uint16_t* cost);
 mixnet_packet* initialize_DATA_packet(mixnet_address** best_paths, mixnet_address dst_address, mixnet_address src_address, char* data);  
-
+mixnet_packet* initialize_PING_packet(mixnet_address** best_paths, mixnet_address dst_address, mixnet_address src_address);
 // alloc to MAX_MIXNET_DATA_SIZE , copy over data properly usin gpointer
 
 

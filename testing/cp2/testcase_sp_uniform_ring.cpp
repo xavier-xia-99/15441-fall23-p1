@@ -62,7 +62,6 @@ public:
 
     virtual error_code run(orchestrator& o) override {
         await_convergence(); // Await STP convergence
-
         // Subscribe to packets from all nodes
         for (uint16_t i = 0; i < graph_->num_nodes; i++) {
             DIE_ON_ERROR(o.pcap_change_subscription(i, true));

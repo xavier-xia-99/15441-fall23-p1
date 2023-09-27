@@ -118,10 +118,15 @@ mixnet_packet* initialize_DATA_packet(mixnet_address** best_paths, mixnet_addres
     mixnet_packet *DATA_packet = (mixnet_packet *) malloc(
 MAX_MIXNET_PACKET_SIZE);
     //
+    assert(best_paths != NULL);
+    assert(dst_address != src_address);
     int path_len = 0;
 
+    //problem is best path doesn't have anything for some reason
+
     for (int i = 0; i < MAX_MIXNET_ROUTE_LENGTH; i++) {
-      if (best_paths[i] == 0) {
+      if (best_paths[i] == NULL) {
+          printf("Ending early for path len");
           break;
       }
       path_len ++;
