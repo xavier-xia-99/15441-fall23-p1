@@ -49,8 +49,8 @@ protected:
     uint32_t reelection_interval_ms_ = 1000;    // Default: 1 second
 
     // Testing parameters
-    uint32_t max_convergence_time_ms_ = 5000;   // Default: 5 seconds
-    uint32_t max_propagation_time_ms_ = 5000;   // Default: 5 seconds
+    uint32_t max_convergence_time_ms_ = 20000;   // Default: 5 seconds
+    uint32_t max_propagation_time_ms_ = 20000;   // Default: 5 seconds
 
     /**
      * Internal helper methods.

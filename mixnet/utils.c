@@ -123,10 +123,9 @@ MAX_MIXNET_PACKET_SIZE);
     int path_len = 0;
 
     //problem is best path doesn't have anything for some reason
-
     for (int i = 0; i < MAX_MIXNET_ROUTE_LENGTH; i++) {
       if (best_paths[i] == NULL) {
-          printf("Ending early for path len");
+          // printf("Ending early for path len");
           break;
       }
       path_len ++;
@@ -155,6 +154,12 @@ MAX_MIXNET_PACKET_SIZE);
     // Copy data to the end of the route w size of MAX_MIXNET_DATA_SIZE
     memcpy((routing_header->route + (routing_header->route_length) * sizeof(mixnet_address)), data, sizeof(MAX_MIXNET_DATA_SIZE));
     
+    printf("[CHECK] from %u to %u \n",src_address, dst_address);
+    for (int i = 0; i < routing_header->route_length; i++) {
+      printf("Route %d: %u \n", i, routing_header->route[i]);
+      // assert(routing_header->route[i]);
+    }
+
     return DATA_packet;    
 
 }
