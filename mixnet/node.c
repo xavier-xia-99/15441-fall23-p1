@@ -216,7 +216,7 @@ void run_node(void *const handle,
                 }
         }
     }
-    printf("\n Node[#%d] Stats: \n | Received %d user packets | Node[#%d] stopped running \n", node->my_addr, num_user_packets, node->my_addr);
+    // printf("\n Node[#%d] Stats: \n | Received %d user packets | Node[#%d] stopped running \n", node->my_addr, num_user_packets, node->my_addr);
     // print_node(node);
 }
 
