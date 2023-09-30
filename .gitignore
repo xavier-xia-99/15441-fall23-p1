@@ -115,3 +115,5 @@ dkms.conf
 # Logs:
 *.log*
 log/*
+
+*.cache/*
