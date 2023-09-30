@@ -108,6 +108,8 @@ void run_node(void *const handle,
     node->neighbors_blocked = malloc(sizeof(bool) * config.num_neighbors);
     node->neighbors_cost = config.link_costs;
     node->visitedCount = 0;
+
+
     // for (int i = 0; i < node->num_neighbors; i ++){
     //     printf(" idx:%d , cost  :%d \n", i, node->neighbors_cost[i]);
     // }
@@ -127,6 +129,10 @@ void run_node(void *const handle,
     node->my_addr = config.node_addr;
     node->next_hop = config.node_addr; // self
     node->path_len = 0;
+
+
+    node->mixing_factor = config.mixing_factor;
+    node->queue_size = 0;
 
     // printf("NODE :#%d initialized! \n", node->my_addr);
     

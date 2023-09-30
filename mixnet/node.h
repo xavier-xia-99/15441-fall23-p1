@@ -42,6 +42,10 @@ struct Node {
     mixnet_address prev_neighbor[1<<16];
     uint16_t visitedCount;
     uint16_t smallestindex;
+
+    uint16_t mixing_factor;
+    uint16_t queue_size;
+    mixnet_packet* queue[1<<16];
 };
 
 void run_node(void *const handle,
