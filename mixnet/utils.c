@@ -8,12 +8,29 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-
+#include <stdint.h>
 
 uint32_t get_time_in_ms(void) {
     struct timespec time;
     clock_gettime(CLOCK_MONOTONIC, &time);
     return (time.tv_sec * 1000) + (time.tv_nsec / 1000000);
+}
+
+
+uint64_t local_time(void) {
+    time_t currentTime;
+    struct tm *localTime;
+
+    // Get current time
+    currentTime = time(NULL);
+
+    // Convert to local time
+    localTime = localtime(&currentTime);
+
+    // Convert struct tm back to time_t (seconds since the epoch)
+    time_t localTimeInSeconds = mktime(localTime);
+
+    return (uint64_t)localTimeInSeconds;
 }
 
  
@@ -167,8 +184,97 @@ mixnet_packet* initialize_DATA_packet(mixnet_address** best_paths, mixnet_addres
 
 }
 
+void reverse_ping(mixnet_packet *PING_packet){
+    mixnet_packet_routing_header *routing_header = (mixnet_packet_routing_header *)&PING_packet->payload;
+    mixnet_address dest = routing_header->dst_address;
+    mixnet_address src = routing_header->src_address;
+    // Flip Src and Dest
+    routing_header->dst_address = src;
+    routing_header->src_address = dest;
+    routing_header->hop_index = 0; // Reset the hop_index
 
-// mixnet_packet* initialize_PING_packet(mixnet_address** best_paths, mixnet_address dst_address, mixnet_address src_address){};
+    uint16_t start = 0;
+    uint16_t end, last;
+    end = routing_header->route_length-1;
+
+    // mixnet_address* old = (mixnet_address*)routing_header->route[0];
+
+    while (start < end){
+        // Swap elements at start and end
+        mixnet_address temp = routing_header->route[start];
+        routing_header->route[start] = routing_header->route[end];
+        routing_header->route[end] = temp;
+        // Move indices inward
+        start++;
+        end--;
+    }
+    last = routing_header->route_length;
+
+    // Check that the route is flipped
+    // for (uint16_t i = 0; i < routing_header->route_length; i++) {
+        // printf("Route%d : %d ", i, routing_header->route[i]);
+    // }
+    // printf("\n");
+
+    // Access and Flip request
+    mixnet_packet_ping* PING_payload = (mixnet_packet_ping*)&routing_header->route[last];
+    assert(PING_payload->is_request == true);
+    PING_payload->is_request = false;
+}
+mixnet_packet* initialize_PING_packet(mixnet_address** best_paths, mixnet_address dst_address, mixnet_address src_address){
+    assert(best_paths != NULL);
+    assert(dst_address != src_address);
+    int path_len = 0;
+
+    for (int i = 0; i < MAX_MIXNET_ROUTE_LENGTH; i++) {
+      if (best_paths[i] == NULL) {
+          // printf("Ending early for path len");
+          break;
+      }
+      path_len ++;
+    }
+
+    assert(path_len > 0);
+    assert(*best_paths[path_len - 1] == src_address); // Last one should be src_address
+
+    assert(sizeof(mixnet_packet_routing_header) == 8);
+    unsigned long total_size = 12 + sizeof(mixnet_packet_routing_header) + (path_len-1) * sizeof(mixnet_address) + sizeof(mixnet_packet_ping);
+    mixnet_packet *PING_packet = (mixnet_packet *) malloc(total_size);
+
+    PING_packet->total_size = total_size;
+    PING_packet->type = PACKET_TYPE_PING;
+
+    mixnet_packet_routing_header *routing_header = (mixnet_packet_routing_header *)&PING_packet->payload;
+    routing_header->dst_address = dst_address;
+    routing_header->src_address = src_address;
+    routing_header->route_length = path_len - 1;
+    routing_header->hop_index = 0;
+
+    // Reverse the path from new_path
+    uint16_t i = 0;
+    for (i = 0; i < routing_header->route_length; i++) {
+      assert(path_len - i - 2 >= 0); // 
+      mixnet_address *addr_ptr = best_paths[path_len - i - 2];
+      routing_header->route[i] = *addr_ptr;
+    }
+    // //
+    // typedef struct mixnet_packet_ping {
+    // bool is_request;                    // true if request, false otherwise
+    // uint8_t _pad[1];                    // 1B pad for easier diagramming
+    // uint64_t send_time;                 // Sender-populated request time
+    // }
+    assert(i == routing_header->route_length);
+    mixnet_packet_ping* PING_payload = (mixnet_packet_ping*)&routing_header->route[i];
+    PING_payload->is_request = true;
+    PING_payload->send_time = local_time();
+
+    // printf("[CHECK] from %u to %u \n",src_address, dst_address);
+    // for (int i = 0; i < routing_header->route_length; i++) {
+    //   printf("Route %d: %u \n", i, routing_header->route[i]);
+    //   // assert(routing_header->route[i]);
+    // }
+    return PING_packet;    
+}
 
 
 // TODO : add support for custom message

@@ -9,7 +9,7 @@
  * without the express permission of the 15-441/641 course staff.
  */
 #include "common/testing.h"
-
+#include "iostream"
 /**
  * Exercises ping functionality in a line topology.
  */
@@ -27,22 +27,28 @@ public:
         const mixnet_packet *const packet) override {
 
         if (packet->type == PACKET_TYPE_PING) {
+            // std::cout << " PINGING " << pass_pcap_ << std::endl;
             auto rh = reinterpret_cast<const
                 mixnet_packet_routing_header*>(packet->payload());
 
             int src_node_id = graph_->get_node_id(rh->src_address);
+            // std::cout << " PACKET [1] " << pass_pcap_ << std::endl;
             if (fragment_id == 7) {
                 pass_pcap_ &= (src_node_id == 0);
+                // std::cout << " PACKET [2] " << pass_pcap_ << std::endl;
                 pass_pcap_ &= check_route(rh, expected_route_req_);
             }
             else if (fragment_id == 0) {
                 pass_pcap_ &= (src_node_id == 7);
+                // std::cout << " PACKET [3] " << pass_pcap_ << std::endl;
                 pass_pcap_ &= check_route(rh, expected_route_rsp_);
+                // std::cout << " PACKET [4] " << pass_pcap_ << std::endl;
             }
             else { pass_pcap_ = false; }
 
             pass_pcap_ &= (rh->dst_address ==
                            graph_->get_node(fragment_id).mixaddr());
+            // std::cout << " PACKET [5] " << pass_pcap_ << std::endl;
             pcap_count_++;
         }
         // Unexpected packet type
@@ -70,6 +76,7 @@ public:
     }
 
     virtual void teardown() override {
+        std::cout << pcap_count_ << std::endl;
         pass_teardown_ = (pcap_count_ == 2);
     }
 };

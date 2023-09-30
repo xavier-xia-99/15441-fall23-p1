@@ -1,4 +1,4 @@
-/**
+ /**
  * Copyright (C) 2023 Carnegie Mellon University
  *
  * This file is part of the Mixnet course project developed for
@@ -130,8 +130,6 @@ void run_node(void *const handle,
 
     // printf("NODE :#%d initialized! \n", node->my_addr);
     
-
-
     send_STP(handle, node); // SEND STP 
     // printf("Set up neighbours");
     // print_node(node);
@@ -333,32 +331,74 @@ void run_node(void *const handle,
                 }
                 else if (packet_buffer->type == PACKET_TYPE_PING){
 
-                    // if (port == node->num_neighbors){
-                    //     //set up my own ping packet
-                    //     mixnet_address src_address, dest_address;
-                    //     memcpy(&src_address, packet_buffer->payload, sizeof(mixnet_address));
-                    //     memcpy(&dest_address, packet_buffer->payload + sizeof(mixnet_address), sizeof(mixnet_address));
-                    //     char* data = (char*) malloc(MAX_MIXNET_DATA_SIZE);
-                        
-                    //     //can i just cpy max_mixnet_data size over?
-                    //     memcpy(data, packet_buffer->payload + 2 * sizeof(mixnet_address) + 2 * sizeof(uint16_t), MAX_MIXNET_DATA_SIZE);
+                    // printf("[%u]: | ", node->my_addr);
+                    // mixnet_packet_routing_header *routing_header = (mixnet_packet_routing_header *)&packet_buffer->payload;
+                    // printf("Routing Header: ");
+                    // printf("  Source Address: %u | ", routing_header->src_address);
+                    // printf("  Destination Address: %u | ", routing_header->dst_address);
 
-                    //     mixnet_address** best_paths = node->global_best_path[dest_address];
-                        
-                    //     mixnet_packet* final_ping_packet = initialize_PING_packet(best_paths, dest_address, src_address);
-
-
+                    // for (int i = 0; i < routing_header->route_length; i++) {
+                    //     printf("  Route %d: %u | ", i, routing_header->route[i]);
                     // }
+                    // printf("\n");
+                    // mixnet_packet_ping *PING_payload = (mixnet_packet_ping *)&routing_header->route[routing_header->route_length];
+                    // printf("PING Payload: ");
+                    // printf("  Is Request: %s ", PING_payload->is_request ? "true" : "false");
+                    // printf("  Send Time: %llu ", (unsigned long long)PING_payload->send_time);
 
-                    // else {
+                    //pull header out from this again
+                    // unsigned long total_size = packet_buffer->total_size;
+                    mixnet_packet_routing_header* header = (mixnet_packet_routing_header* ) &packet_buffer->payload;
 
-                    //     //rmbr check destination and then send back also
+                    //set up my own ping packet, this shld set up the is dest thing.
+                    //i will only get back if it fucks up
+                    if (port == node->num_neighbors){
+                        // printf("[%d] RECEIVE USER \n", node->my_addr);
+                        num_user_packets++;
+                        dijkstra(node, false);
+                        mixnet_address** best_paths = node->global_best_path[header->dst_address];
+                        mixnet_packet* final_ping_packet = initialize_PING_packet(best_paths, header->dst_address, header->src_address);
 
-                    // }
+                        mixnet_packet_routing_header* new_header = (mixnet_packet_routing_header*) &final_ping_packet->payload;
+                        uint16_t nextport = find_next_port(new_header, node);
+                        assert(nextport != INVALID_MIXADDR);
+                        mixnet_send(handle, nextport, final_ping_packet);
+                    }
+                    //revved
+                    else {
+                        mixnet_packet_ping* PING_payload = (mixnet_packet_ping*)&header->route[header->route_length]; 
+                        
+                        //i'm done here, just send to user. do something else for lab here
+                        if (header->dst_address == node->my_addr && !PING_payload->is_request) {
+                            //check if we shld send packet_buffer fully like this, bcs we didnt use to
+                            mixnet_send(handle, node->num_neighbors, packet_buffer);
+                        }
+                        // Use this for time : uint64_t local_time();
+                    
+                        else if (header->dst_address == node->my_addr && PING_payload->is_request){
+                            // printf("[%d] RECEIVE on DEST need to reverse\n ", node->my_addr);
+                            assert(header->hop_index == header->route_length);
+                            // Reverse after sending to user
+                            mixnet_packet* sendUser = (mixnet_packet*) malloc(packet_buffer->total_size);
+                            memcpy(sendUser, packet_buffer, packet_buffer->total_size);
+                            mixnet_send(handle, node->num_neighbors, sendUser);
+                                    
+                            reverse_ping(packet_buffer);
+                            mixnet_packet_routing_header* new_header = (mixnet_packet_routing_header*) &packet_buffer->payload;
+                            uint16_t nextport = find_next_port(new_header, node);
+                            assert(nextport != INVALID_MIXADDR);
+                            mixnet_send(handle, nextport, packet_buffer);
+                        }
 
-
-                // }
-
+                        else {
+                            header->hop_index ++;
+                            assert(header->hop_index > 0);
+                            uint16_t nextport = find_next_port(header, node);
+                            assert(nextport != INVALID_MIXADDR);
+                            mixnet_send(handle, nextport, packet_buffer);
+                        }
+                        
+                    }
                 // printf("Received Data/Ping Packet! \n");
                 }
 

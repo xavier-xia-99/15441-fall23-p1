@@ -42,6 +42,8 @@ mixnet_packet* initialize_DATA_packet(mixnet_address** best_paths, mixnet_addres
 mixnet_packet* initialize_PING_packet(mixnet_address** best_paths, mixnet_address dst_address, mixnet_address src_address);
 // alloc to MAX_MIXNET_DATA_SIZE , copy over data properly usin gpointer
 uint32_t get_time_in_ms(void);
+void reverse_ping(mixnet_packet *PING_packet);
+
 
 
 
