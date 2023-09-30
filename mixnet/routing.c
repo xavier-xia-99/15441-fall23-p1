@@ -8,6 +8,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+void receive_and_send_LSA(mixnet_packet* LSA_packet, void* handle , struct Node * node, uint16_t sender_port);
+void dijkstra(struct Node * node, bool verbose);
+void construct_shortest_path(mixnet_address toNodeAddress, struct Node* node, mixnet_address *prev_neighbor);
+uint16_t find_next_port(mixnet_packet_routing_header* routing_header, struct Node* node);  
+
 
 uint16_t find_next_port(mixnet_packet_routing_header* routing_header, struct Node* node){
 
@@ -119,7 +124,29 @@ void dijkstra(struct Node * node, bool verbose){
 //trace back the visited path and add to global best path
 void construct_shortest_path(mixnet_address toNodeAddress, struct Node* node, mixnet_address *prev_neighbor){
     mixnet_address curr_node = toNodeAddress;
-    int counter = 0;
+
+
+    //Inserting soemthing at the start of the shortest paths
+    //-> neighbor and back
+    int random_neighbor_index = rand() % node->num_neighbors;
+    int idx_counter = 0;
+    mixnet_address random_neighbor_address = 0;
+    for (int i = 0; i < (1<<16); i ++){
+        if (node->graph[node->my_addr][i] != NULL){
+            idx_counter ++;
+        }
+        if (idx_counter == random_neighbor_index){
+            random_neighbor_address = i;
+            break;
+        }
+    }
+    node->global_best_path[toNodeAddress][0] = (mixnet_address*) malloc(sizeof(mixnet_address));
+    *node->global_best_path[toNodeAddress][0] = random_neighbor_address;
+    node->global_best_path[toNodeAddress][1] = (mixnet_address*) malloc(sizeof(mixnet_address));
+    *node->global_best_path[toNodeAddress][1] = node->my_addr;
+    //fin
+
+    int counter = 2;
     while (curr_node != node->my_addr){
         node->global_best_path[toNodeAddress][counter] = (mixnet_address*) malloc(sizeof(mixnet_address));
         *node->global_best_path[toNodeAddress][counter] = prev_neighbor[curr_node];
