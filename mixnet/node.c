@@ -25,30 +25,6 @@
 #define INF 0xFFFF
 
 
-//structure of our Node 
-struct Node {
-    uint16_t num_neighbors;  // number of neighbors
-    mixnet_address *neighbors_addy; // Array of neighbors (mixnet address)
-    uint16_t *neighbors_cost;
-    bool *neighbors_blocked; // Block of neighbors (false is unblocked)
-
-    uint16_t total_neighbors_num;
-
-    mixnet_address* global_best_path[1 << 16][1 << 8]; // List of [Path := List of mixnet_address
-    mixnet_lsa_link_params* graph[1 << 16][1 << 8]; // 2^16 nodes, 2^8 List : []]
-
-    mixnet_address root_addr; // root addr
-    mixnet_address my_addr; // self addr
-    mixnet_address next_hop; // Next hop
-    uint16_t path_len;
-
-    bool visited[1<<16];
-    uint16_t distance[1<<16];
-    mixnet_address prev_neighbor[1<<16];
-    uint16_t visitedCount;
-
-};
-
 
 
 // Declare functions
@@ -110,13 +86,6 @@ void send_FLOOD(void *const handle, struct Node *node, uint16_t sender_port) {
     }
 
 
-uint32_t get_time_in_ms(void) {
-    struct timespec time;
-    clock_gettime(CLOCK_MONOTONIC, &time);
-    return (time.tv_sec * 1000) + (time.tv_nsec / 1000000);
-}
-
-
 /**
  * @brief This function is entrance point into each node
  * 
@@ -134,7 +103,7 @@ void run_node(void *const handle,
     // Initialize Node from the handle
     struct Node* node = malloc(sizeof(struct Node));
     node->num_neighbors = config.num_neighbors;
-    node->total_neighbors_num = 0;
+    node->total_nodes = 0;
     node->neighbors_addy = malloc(sizeof(mixnet_address) * config.num_neighbors);
     node->neighbors_blocked = malloc(sizeof(bool) * config.num_neighbors);
     node->neighbors_cost = config.link_costs;
@@ -445,7 +414,7 @@ void dijkstra(struct Node * node, bool verbose){
     node->visited[node->my_addr] = false; // node->visited self
     mixnet_address smallestindex = node->my_addr;
 
-    while (node->visitedCount < node->total_neighbors_num + 1) {
+    while (node->visitedCount < node->total_nodes + 1) {
         //TODO: find min value from everything in index and visit it 
         //(node w least distance), visit that shit
         uint16_t min_number = UINT16_MAX;
@@ -492,7 +461,7 @@ void dijkstra(struct Node * node, bool verbose){
 
     // if (verbose) {
     //     printf("[DIJKSTRA END] we've looped this many times %u\n", node->visitedCount);
-    //     printf("this is actually how many neighbors we have %u\n", node->total_neighbors_num);
+    //     printf("this is actually how many neighbors we have %u\n", node->total_nodes);
 
     //     printf("distance and visited array: ");
     //     for (uint16_t i = 0; i < (1<<16)-1; ++i) {
@@ -554,7 +523,7 @@ void receive_and_send_LSA(mixnet_packet* LSA_packet, void* handle , struct Node 
         uint16_t cost = nb_link_params[i].cost;
 
         if (node->graph[node_addr][0] == NULL){
-            node->total_neighbors_num++;
+            node->total_nodes++;
         }
 
         // CAST (mixnet_lsa_link_params*)
@@ -665,7 +634,7 @@ void print_node(struct Node *node, bool verbose) {
     printf("Node Addr: %d \n", node->my_addr);
     printf("Next Hop: %d \n", node->next_hop);
     printf("Num Neighbors %d \n", node->num_neighbors);
-    printf("Total Nodes in Graph %d \n", node->total_neighbors_num);
+    printf("Total Nodes in Graph %d \n", node->total_nodes);
     printf("Neighbors List : \n");
     for (uint16_t i = 0; i < node->num_neighbors; i++) {
         const char* value = (node->neighbors_blocked[i]) ? "Yes" : "No";

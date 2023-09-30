@@ -13,12 +13,36 @@
 
 #include "address.h"
 #include "config.h"
+#include "packet.h"
 
 #include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+//structure of our Node 
+struct Node {
+    uint16_t num_neighbors;  // number of neighbors
+    mixnet_address *neighbors_addy; // Array of neighbors (mixnet address)
+    uint16_t *neighbors_cost;
+    bool *neighbors_blocked; // Block of neighbors (false is unblocked)
+
+    uint16_t total_nodes;
+
+    mixnet_address* global_best_path[1 << 16][1 << 8]; // List of [Path := List of mixnet_address
+    mixnet_lsa_link_params* graph[1 << 16][1 << 8]; // 2^16 nodes, 2^8 List : []]
+
+    mixnet_address root_addr; // root addr
+    mixnet_address my_addr; // self addr
+    mixnet_address next_hop; // Next hop
+    uint16_t path_len;
+
+    bool visited[1<<16];
+    uint16_t distance[1<<16];
+    mixnet_address prev_neighbor[1<<16];
+    uint16_t visitedCount;
+    uint16_t smallestindex;
+};
 
 void run_node(void *const handle,
               volatile bool *const keep_running,

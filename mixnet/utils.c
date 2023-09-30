@@ -7,6 +7,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+
+
+uint32_t get_time_in_ms(void) {
+    struct timespec time;
+    clock_gettime(CLOCK_MONOTONIC, &time);
+    return (time.tv_sec * 1000) + (time.tv_nsec / 1000000);
+}
 
  
 mixnet_packet* initialize_STP_packet(mixnet_address root_address,

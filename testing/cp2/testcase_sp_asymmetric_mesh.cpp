@@ -44,7 +44,7 @@ public:
             if (pass_pcap_) { received_[normalized_src_node_id]++; }
 
             pass_pcap_ &= (
-                (src_node_id == 0) ? check_route(rh, expected_0_) :
+                (src_node_id == 1) ? check_route(rh, expected_0_) :
                                      check_route(rh, expected_1_));
 
             pass_pcap_ &= check_data(packet, data_[normalized_src_node_id]);

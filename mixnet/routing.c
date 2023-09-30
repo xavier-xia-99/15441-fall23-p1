@@ -129,7 +129,6 @@ void construct_shortest_path(mixnet_address toNodeAddress, struct Node* node, mi
     assert(curr_node == node->my_addr);
   
 }
-    
 
 // @TODO : Receives LSA : (1) Update Link State, (2) Sends Out to Unblocked Ports
 void receive_and_send_LSA(mixnet_packet* LSA_packet, void* handle , struct Node * node, uint16_t sender_port){

@@ -41,7 +41,7 @@ mixnet_packet* initialize_LSA_packet(mixnet_address node_addr, uint16_t nb_count
 mixnet_packet* initialize_DATA_packet(mixnet_address** best_paths, mixnet_address dst_address, mixnet_address src_address, char* data, unsigned long data_size);  
 mixnet_packet* initialize_PING_packet(mixnet_address** best_paths, mixnet_address dst_address, mixnet_address src_address);
 // alloc to MAX_MIXNET_DATA_SIZE , copy over data properly usin gpointer
-
+uint32_t get_time_in_ms(void);
 
 
 
