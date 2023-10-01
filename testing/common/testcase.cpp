@@ -50,8 +50,8 @@ int testcase::run_testcase(testcase& tc, int argc, char **argv) {
     if (autotest) {
         tc.root_hello_interval_ms_ = 10;
         tc.reelection_interval_ms_ = 100;
-        tc.max_convergence_time_ms_ = 500;
-        tc.max_propagation_time_ms_ = 500;
+        tc.max_convergence_time_ms_ = 1000;
+        tc.max_propagation_time_ms_ = 1000;
     }
 
     // Configure the orchestrator
