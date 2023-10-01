@@ -35,8 +35,8 @@ void print_graph(struct Node* node);
 void print_node(struct Node* node, bool verbose);
 void print_globalgraph(struct Node* node);
 
-
-void receive_and_update(void *const handle, struct Node *node);
+bool mixing (struct Node* node, mixnet_packet* packet_buffer);
+void release_messages(struct Node* node, void* handle, int type);
 // void send_packet(void *const handle, struct node *node, enum mixnet_packet_type_enum type, uint16_t sender_port);
 bool receive_STP(struct Node *currNode, uint8_t i, mixnet_packet *stp_packet, void* handle);
 void receive_and_send_LSA(mixnet_packet* LSA_packet, void* handle , struct Node * node, uint16_t sender_port);
@@ -159,18 +159,12 @@ void run_node(void *const handle,
     // printf("Starting time: %d \n", start_time);
 
     //allocate chunk of memory for buffer
-    mixnet_packet *packet_buffer =
-        (mixnet_packet *)malloc(sizeof(MAX_MIXNET_PACKET_SIZE));
-
     // printf("Packet memory initialized\n");
 
-    if (packet_buffer == NULL) {
-        exit(1);
-    }
     uint16_t num_user_packets = 0;
     uint16_t sent_to_users = 0;
     // uint8_t node_id = node->my_addr; 
-
+    
     while(*keep_running) {
         //check if keep running is true
         if (!(*keep_running)) {
@@ -179,6 +173,9 @@ void run_node(void *const handle,
         }
 
         uint8_t port;
+            mixnet_packet *packet_buffer =
+        (mixnet_packet *)malloc(sizeof(MAX_MIXNET_PACKET_SIZE));
+
         bool recv = mixnet_recv(handle, &port, &packet_buffer);
 
         // receiving from all my neighbors
@@ -295,8 +292,11 @@ void run_node(void *const handle,
             // TODO : Packets that uses Routing Headers
             else {
                 assert(packet_buffer->type == PACKET_TYPE_DATA || packet_buffer->type == PACKET_TYPE_PING);
+<<<<<<< Updated upstream
 
             
+=======
+>>>>>>> Stashed changes
                     if (packet_buffer->type == PACKET_TYPE_DATA){
                         unsigned long total_size = packet_buffer->total_size;
                         mixnet_packet_routing_header* header = (mixnet_packet_routing_header* ) &packet_buffer->payload;
@@ -408,12 +408,15 @@ void run_node(void *const handle,
                             mixnet_packet* sendUser = (mixnet_packet*) malloc(packet_buffer->total_size);
                             memcpy(sendUser, packet_buffer, packet_buffer->total_size);
                             mixnet_send(handle, node->num_neighbors, sendUser);
-                                    
-                            reverse_ping(packet_buffer);
-                            mixnet_packet_routing_header* new_header = (mixnet_packet_routing_header*) &packet_buffer->payload;
-                            uint16_t nextport = find_next_port(new_header, node);
+                            reverse_ping(packet_buffer); 
+                            uint16_t nextport = find_next_port(header, node);
                             assert(nextport != INVALID_MIXADDR);
                             mixnet_send(handle, nextport, packet_buffer);
+                        // if (mixing(node, packet_buffer)){
+                            //     printf("[Full]\n");
+                            //     release_messages(node, handle, PACKET_TYPE_PING);
+                            // }
+                            
                         } else {
                                 header->hop_index ++;
                                 assert(header->hop_index > 0);
@@ -421,10 +424,10 @@ void run_node(void *const handle,
                                 assert(nextport != INVALID_MIXADDR);
                                 mixnet_send(handle, nextport, packet_buffer);
                             }
-                            }
-                // printf("Received Data/Ping Packet! \n");
                         }
-                }
+                // printf("Received Data/Ping Packet! \n");
+                    }
+                
         }
     }
     // printf("================NODE #%d FINISH RUN=================\n", node->my_addr);
@@ -434,6 +437,36 @@ void run_node(void *const handle,
     }
 }
 
+bool mixing (struct Node* node, mixnet_packet* packet_buffer){
+    if (node->queue_size < node->mixingfactor){
+        printf("IDX: [%d] @ Node#%d type : %d , size: %d  \n",node->queue_size, node->my_addr, packet_buffer->type, packet_buffer->total_size);
+        node->queue[node->queue_size] = (mixnet_packet *)malloc(sizeof(MAX_MIXNET_PACKET_SIZE));
+        memcpy(node->queue[node->queue_size], packet_buffer, sizeof(MAX_MIXNET_PACKET_SIZE));
+        // memcpy(&node->queue[node->queue_size], &packet_buffer, packet_buffer->total_size);
+        assert(node->queue[node->queue_size] != NULL);
+        node->queue_size ++;
+        return true;
+        // printf("Node: %d received packet! @ Port : %d | Q_size : %d \n", node->my_addr, port, node->queue_size);
+    }
+    return false;
+}
+
+void release_messages(struct Node* node, void* handle, int type){
+    assert(node->queue_size ==  node->mixingfactor);
+    uint16_t flush_idx = 0;
+    node->queue_size = 0;
+    while (flush_idx < node->mixingfactor){
+        mixnet_packet* packet_buffer = node->queue[flush_idx];
+        packet_buffer->type = type;
+        printf("IDX :[%d] Size %d, Type :%d | \n",flush_idx, packet_buffer->total_size, packet_buffer->type);
+        mixnet_packet_routing_header* new_header = (mixnet_packet_routing_header*) &packet_buffer->payload;
+
+        uint16_t nextport = find_next_port(new_header, node);
+        assert(nextport != INVALID_MIXADDR);
+        mixnet_send(handle, nextport, packet_buffer);
+        flush_idx ++;
+    }
+}
 uint16_t find_next_port(mixnet_packet_routing_header* routing_header, struct Node* node){
     // Print Cur Hop and Mixnet Address
     // Print Next_Hop and Mixnet Address

@@ -46,7 +46,7 @@ struct Node {
     uint16_t smallestindex;
 
     uint16_t mixingfactor;
-    mixnet_packet* queue[1<<16];
+    mixnet_packet* queue[16];
     uint16_t queue_size;
 
     bool random_routing;
