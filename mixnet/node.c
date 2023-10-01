@@ -705,7 +705,7 @@ bool receive_STP(struct Node * currNode, uint8_t port, mixnet_packet* stp_packet
             currNode->neighbors_unused[port] = true;
             currNode->stp_unused ++;
         }
-        if (currNode->stp_unused == currNode->num_neighbors){
+        if (currNode->stp_unused == currNode->num_neighbors-1){
             printf("Node #%d, [Converged Time:%llu] \n", currNode->my_addr, current_time_in_milliseconds());
         }
     }
