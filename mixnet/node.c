@@ -45,10 +45,6 @@ void construct_shortest_path(mixnet_address toNodeAddress, struct Node* node, mi
 uint16_t find_next_port(mixnet_packet_routing_header* routing_header, struct Node* node);  
   
 
-struct message {
-    mixnet_packet* packet;
-    uint16_t port;
-};
   /**
    * @brief This function is called send STP constantly
    *     initialize a packet and send to all neighbors
@@ -169,7 +165,7 @@ void run_node(void *const handle,
     // uint8_t node_id = node->my_addr; 
 
     send_STP(handle, node); // SEND STP 
-    printf("[%d] Start Time: %lu \n", node->my_addr, local_time());
+    printf("[%d] Start Time: %llu \n", node->my_addr, current_time_in_milliseconds());
     
     while(*keep_running) {
         //check if keep running is true
@@ -710,7 +706,7 @@ bool receive_STP(struct Node * currNode, uint8_t port, mixnet_packet* stp_packet
             currNode->stp_unused ++;
         }
         if (currNode->stp_unused == currNode->num_neighbors){
-            printf("Node #%d, [Converged Time:%lu] \n", currNode->my_addr, local_time());
+            printf("Node #%d, [Converged Time:%llu] \n", currNode->my_addr, current_time_in_milliseconds());
         }
     }
         

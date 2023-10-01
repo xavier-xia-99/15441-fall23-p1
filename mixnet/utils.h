@@ -45,6 +45,7 @@ uint32_t get_time_in_ms(void);
 uint64_t local_time(void);
 void reverse_ping(mixnet_packet *PING_packet);
 
+unsigned long long current_time_in_milliseconds(void);
 
 
 

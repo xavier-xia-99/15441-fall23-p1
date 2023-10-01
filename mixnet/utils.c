@@ -5,6 +5,7 @@
 
 #include "utils.h"
 #include <stdio.h>
+#include <sys/time.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -30,7 +31,16 @@ uint64_t local_time(void) {
     // Convert struct tm back to time_t (seconds since the epoch)
     time_t localTimeInSeconds = mktime(localTime);
 
-    return (uint64_t)localTimeInSeconds;
+    return (uint64_t)localTimeInSeconds*1000;
+}
+
+
+
+
+unsigned long long current_time_in_milliseconds(void) {
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return (unsigned long long)(tv.tv_sec) * 1000 + (unsigned long long)(tv.tv_usec) / 1000;
 }
 
  
