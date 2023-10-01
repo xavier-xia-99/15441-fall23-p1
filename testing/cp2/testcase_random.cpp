@@ -9,6 +9,7 @@
  * without the express permission of the 15-441/641 course staff.
  */
 #include "common/testing.h"
+#include <iostream>
 
 /**
  * Exercises random routing in a ring topology.
@@ -23,36 +24,58 @@ public:
     explicit testcase_random() :
         testcase("testcase_random") {}
 
-    virtual void pcap(
-        const uint16_t fragment_id,
-        const mixnet_packet *const packet) override {
+   virtual void pcap(
+    const uint16_t fragment_id,
+    const mixnet_packet *const packet) override {
 
-        if (packet->type == PACKET_TYPE_DATA) {
-            auto rh = reinterpret_cast<const
-                mixnet_packet_routing_header*>(packet->payload());
+    if (packet->type == PACKET_TYPE_DATA) {
+        auto rh = reinterpret_cast<const mixnet_packet_routing_header*>(packet->payload());
 
-            pass_pcap_ &= (fragment_id == 1);
-            pass_pcap_ &= (rh->src_address == 15);
-            pass_pcap_ &= (rh->dst_address == 31);
-            pass_pcap_ &= check_data(packet, data_);
-            pass_pcap_ &= (rh->route_length <= MAX_MIXNET_ROUTE_LENGTH);
-
-            std::vector<mixnet_address> current_route;
-            for (uint16_t idx = 0; (idx < rh->route_length)
-                                    && pass_pcap_; idx++) {
-                current_route.push_back(rh->route()[idx]);
-            }
-            if (pcap_count_ == 0) {
-                first_route_ = current_route;
-            }
-            else {
-                // Saw two or more distinct routes, seems random :)
-                saw_distinct_routes_ |= (first_route_ != current_route);
-            }
-            pcap_count_++;
+        if (fragment_id != 1) {
+            std::cout << "Fragment ID check failed." << std::endl;
         }
-        // Unexpected packet type
-        else { pass_pcap_ = false; }
+        pass_pcap_ &= (fragment_id == 1);
+
+        if (rh->src_address != 15) {
+            std::cout << "Source address check failed." << std::endl;
+        }
+        pass_pcap_ &= (rh->src_address == 15);
+
+        if (rh->dst_address != 31) {
+            std::cout << "Destination address check failed." << std::endl;
+        }
+        pass_pcap_ &= (rh->dst_address == 31);
+
+        if (!check_data(packet, data_)) {
+            std::cout << "Data check failed." << std::endl;
+        }
+        pass_pcap_ &= check_data(packet, data_);
+
+        if (rh->route_length > MAX_MIXNET_ROUTE_LENGTH) {
+            std::cout << "Route length check failed." << std::endl;
+        }
+        pass_pcap_ &= (rh->route_length <= MAX_MIXNET_ROUTE_LENGTH);
+
+        std::vector<mixnet_address> current_route;
+        for (uint16_t idx = 0; (idx < rh->route_length) && pass_pcap_; idx++) {
+            current_route.push_back(rh->route()[idx]);
+        }
+        if (pcap_count_ == 0) {
+            first_route_ = current_route;
+        }
+        else {
+            if (first_route_ == current_route) {
+                std::cout << "Distinct route check failed." << std::endl;
+            }
+            saw_distinct_routes_ |= (first_route_ != current_route);
+        }
+        pcap_count_++;
+    }
+    // Unexpected packet type
+    else { 
+        std::cout << "Unexpected packet type." << std::endl;
+        pass_pcap_ = false; 
+}
     }
 
     virtual void setup() override {
@@ -79,8 +102,15 @@ public:
         return error_code::NONE;
     }
 
-    virtual void teardown() override {
+        virtual void teardown() override {
+        if (pcap_count_ != 100) {
+            std::cout << "Packet count check failed. Only captured " << pcap_count_ << " packets." << std::endl;
+        }
         pass_teardown_ = (pcap_count_ == 100);
+
+        if (!saw_distinct_routes_) {
+            std::cout << "Did not see distinct routes." << std::endl;
+        }
         pass_teardown_ &= saw_distinct_routes_;
     }
 };

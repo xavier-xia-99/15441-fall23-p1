@@ -28,6 +28,8 @@ struct Node {
     bool *neighbors_blocked; // Block of neighbors (false is unblocked)
 
     uint16_t total_nodes;
+    bool random;
+    bool done;
 
     mixnet_address* global_best_path[1 << 16][1 << 8]; // List of [Path := List of mixnet_address
     mixnet_lsa_link_params* graph[1 << 16][1 << 8]; // 2^16 nodes, 2^8 List : []]
@@ -43,9 +45,11 @@ struct Node {
     uint16_t visitedCount;
     uint16_t smallestindex;
 
-    uint16_t mixing_factor;
-    uint16_t queue_size;
+    uint16_t mixingfactor;
     mixnet_packet* queue[1<<16];
+    uint16_t queue_size;
+
+    bool random_routing;
 };
 
 void run_node(void *const handle,
