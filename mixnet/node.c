@@ -144,7 +144,7 @@ void run_node(void *const handle,
     node->path_len = 0;
 
 
-    node->mixing_factor = config.mixing_factor;
+    node->mixingfactor = config.mixing_factor;
     node->queue_size = 0;
 
     // printf("NODE :#%d initialized! \n", node->my_addr);
@@ -292,11 +292,6 @@ void run_node(void *const handle,
             // TODO : Packets that uses Routing Headers
             else {
                 assert(packet_buffer->type == PACKET_TYPE_DATA || packet_buffer->type == PACKET_TYPE_PING);
-<<<<<<< Updated upstream
-
-            
-=======
->>>>>>> Stashed changes
                     if (packet_buffer->type == PACKET_TYPE_DATA){
                         unsigned long total_size = packet_buffer->total_size;
                         mixnet_packet_routing_header* header = (mixnet_packet_routing_header* ) &packet_buffer->payload;
