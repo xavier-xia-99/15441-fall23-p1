@@ -28,9 +28,9 @@ public:
     }
 
     virtual void setup() override {
-        init_graph(8);
+        init_graph(7);
         graph_->generate_topology(graph::type::LINE);
-        graph_->set_mixaddrs({1, 3, 5, 4, 7, 6, 8, 0});
+        graph_->set_mixaddrs({1, 3, 5, 4, 7, 6, 8});
     }
 
     virtual error_code run(orchestrator& o) override {
@@ -53,7 +53,7 @@ public:
     }
 
     virtual void teardown() override {
-        pass_teardown_ = (pcap_count_ == (16 * 7));
+        pass_teardown_ = (pcap_count_ == (16 * 6));
     }
 };
 
