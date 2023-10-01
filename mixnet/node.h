@@ -28,6 +28,8 @@ struct Node {
     bool *neighbors_blocked; // Block of neighbors (false is unblocked)
 
     uint16_t total_nodes;
+    bool random;
+    bool done;
 
     mixnet_address* global_best_path[1 << 16][1 << 8]; // List of [Path := List of mixnet_address
     mixnet_lsa_link_params* graph[1 << 16][1 << 8]; // 2^16 nodes, 2^8 List : []]
