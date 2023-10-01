@@ -122,9 +122,12 @@ void run_node(void *const handle,
     node->random_routing = config.do_random_routing;
     node->random = false;
     node->done = false;
-    // for (int i = 0; i < node->num_neighbors; i ++){
-    //     printf(" idx:%d , cost  :%d \n", i, node->neighbors_cost[i]);
-    // }
+
+    node->stp_unused = 0;
+    node->neighbors_unused = malloc(sizeof(mixnet_address) * config.num_neighbors);
+    for (int i = 0; i < node->num_neighbors; i ++){
+        node->neighbors_unused[i] = false;
+    }
 
     if (node->neighbors_addy == NULL || node->neighbors_blocked == NULL) {
         exit(1);
@@ -142,9 +145,8 @@ void run_node(void *const handle,
     node->next_hop = config.node_addr; // self
     node->path_len = 0;
 
-    // printf("NODE :#%d initialized! \n", node->my_addr);
+    printf("NODE :#%d initialized! \n", node->my_addr);
     
-    send_STP(handle, node); // SEND STP 
     // printf("Set up neighbours");
     // print_node(node);
     
@@ -166,6 +168,9 @@ void run_node(void *const handle,
     uint16_t sent_to_users = 0;
     // uint8_t node_id = node->my_addr; 
 
+    send_STP(handle, node); // SEND STP 
+    printf("[%d] Start Time: %lu \n", node->my_addr, local_time());
+    
     while(*keep_running) {
         //check if keep running is true
         if (!(*keep_running)) {
@@ -659,6 +664,7 @@ bool receive_STP(struct Node * currNode, uint8_t port, mixnet_packet* stp_packet
             currNode->path_len = update->path_length + 1;
             currNode->next_hop = update->node_address;
             state_changed = true;
+            
             // old_root = currNode->root_addr;
     }
     // Received lower_path_length
@@ -679,9 +685,14 @@ bool receive_STP(struct Node * currNode, uint8_t port, mixnet_packet* stp_packet
     if (state_changed){
         // Reset All Nodes
         send_STP(handle, currNode);
-
+        currNode->stp_unused = 0;
+        for (uint16_t i = 0; i < currNode->num_neighbors; i++) {
+            currNode->neighbors_unused[i] = false;
+        }
+        
         // currNode->neighbors_blocked[old_root] = 
     }
+
     // BLOCK LOGIC
     // Parent is unblocked
     if (update->node_address == currNode->next_hop){
@@ -694,7 +705,13 @@ bool receive_STP(struct Node * currNode, uint8_t port, mixnet_packet* stp_packet
             // printf("Node #%d, blocking my potential Parent, who is strictly worse \n", currNode->my_addr);
         currNode->neighbors_blocked[port] = false;
     } else {
-        currNode->neighbors_blocked[port] = true;
+        if (!currNode->neighbors_unused[port]){
+            currNode->neighbors_unused[port] = true;
+            currNode->stp_unused ++;
+        }
+        if (currNode->stp_unused == currNode->num_neighbors){
+            printf("Node #%d, [Converged Time:%lu] \n", currNode->my_addr, local_time());
+        }
     }
         
     // free(update);

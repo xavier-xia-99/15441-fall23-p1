@@ -50,6 +50,8 @@ struct Node {
     uint16_t queue_size;
 
     bool random_routing;
+    uint16_t stp_unused;
+    bool* neighbors_unused;
 };
 
 void run_node(void *const handle,
