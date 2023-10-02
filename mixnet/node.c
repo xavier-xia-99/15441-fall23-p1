@@ -58,6 +58,7 @@ void send_STP(void *const handle, struct Node *node) {
     for (int i = 0; i < node->num_neighbors; i++) {
         // printf("Sending out STP to %d \n", node->neighbors_addy[i]);
         mixnet_packet* discover_packet = initialize_STP_packet(node->root_addr,node->path_len,node->my_addr);
+        node->stp_sent++;
         // print_packet(discover_packet);
         mixnet_send(handle, i, discover_packet); 
     }
@@ -162,6 +163,8 @@ void run_node(void *const handle,
     }
     uint16_t num_user_packets = 0;
     uint16_t sent_to_users = 0;
+    node->stp_received = 0;
+    node->stp_sent = 0;
     // uint8_t node_id = node->my_addr; 
 
     send_STP(handle, node); // SEND STP 
@@ -241,12 +244,14 @@ void run_node(void *const handle,
                 memcpy((void *)update, (void *)packet_buffer->payload,  sizeof(mixnet_packet_stp));
 
                 if (packet_buffer->type == PACKET_TYPE_STP){
+                    node->stp_received++;
                     // parent, set everyone, receive every
                     if (update->root_address == node->root_addr && update->path_length + 1 == node->path_len && update->node_address == node->next_hop) {
                         // mixnet_packet* new_packet = initialize_STP_packet(node->root_addr,node->path_len,node->my_addr);
                         // mixnet_send(handle, port, new_packet);
                         for (int i = 0; i < node->num_neighbors; i++) {
                             if (i == port) continue;
+                            node->stp_sent++;
                             // printf("Sending out STP to %d \n", node->neighbors_addy[i]);
                             mixnet_packet* discover_packet = initialize_STP_packet(node->root_addr,node->path_len,node->my_addr);
                             // print_packet(discover_packet);
@@ -440,6 +445,7 @@ void run_node(void *const handle,
     // printf("================NODE #%d FINISH RUN=================\n", node->my_addr);
     // // print_graph(node);
     // printf("Node[#%d] Stats: \n | Received User Packets: %d  | Sent To User: %d, Node[#%d] stopped running \n", node->my_addr, num_user_packets, sent_to_users, node->my_addr);
+    printf("Node[#%d] Stats: \n | Sent STP Packets: %d  | Recevied STP: %d \n", node->my_addr, node->stp_sent, node->stp_received);
     // print_node(node, false);
     }
 }

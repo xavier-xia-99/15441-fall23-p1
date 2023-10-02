@@ -31,6 +31,10 @@ add_compile_options(-Wall -Wextra -Werror)
 if (DEBUG)
     message("Debugging is ENABLED (to disable, run `cmake .. -DDEBUG=OFF`)")
     add_compile_options(-O0 -g)
+    
+    # Add ASan flags only when debugging is enabled
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -O1 -fno-omit-frame-pointer")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address -O1 -fno-omit-frame-pointer")
 else(DEBUG)
     message("Debugging is DISABLED (to enable, run `cmake .. -DDEBUG=ON`)")
     add_compile_options(-O3)

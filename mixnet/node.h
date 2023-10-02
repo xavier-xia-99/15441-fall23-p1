@@ -52,6 +52,9 @@ struct Node {
     bool random_routing;
     uint16_t stp_unused;
     bool* neighbors_unused;
+    
+    uint16_t stp_received;
+    uint16_t stp_sent;
 };
 
 void run_node(void *const handle,
