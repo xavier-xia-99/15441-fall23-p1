@@ -34,9 +34,6 @@ uint64_t local_time(void) {
     return (uint64_t)localTimeInSeconds*1000;
 }
 
-
-
-
 unsigned long long current_time_in_milliseconds(void) {
     struct timeval tv;
     gettimeofday(&tv, NULL);

@@ -168,8 +168,9 @@ void run_node(void *const handle,
     // uint8_t node_id = node->my_addr; 
 
     send_STP(handle, node); // SEND STP 
-    printf("[%d] Start Time: %llu \n", node->my_addr, current_time_in_milliseconds());
-    
+    // node->start_time = current_time_in_milliseconds();
+    node->start_time = local_time();
+    printf("Node[#%d] started %lu \n", node->my_addr, node->start_time);
     while(*keep_running) {
         //check if keep running is true
         if (!(*keep_running)) {
@@ -445,9 +446,9 @@ void run_node(void *const handle,
     // printf("================NODE #%d FINISH RUN=================\n", node->my_addr);
     // // print_graph(node);
     // printf("Node[#%d] Stats: \n | Received User Packets: %d  | Sent To User: %d, Node[#%d] stopped running \n", node->my_addr, num_user_packets, sent_to_users, node->my_addr);
-    printf("Node[#%d] Stats: \n | Sent STP Packets: %d  | Recevied STP: %d \n", node->my_addr, node->stp_sent, node->stp_received);
-    // print_node(node, false);
     }
+    // print_node(node, false);
+    printf("Node[#%d] STP Stats | Sent: %d  | Received: %d \n", node->my_addr, node->stp_sent, node->stp_received);
 }
 
 uint16_t find_next_port(mixnet_packet_routing_header* routing_header, struct Node* node){
@@ -706,15 +707,17 @@ bool receive_STP(struct Node * currNode, uint8_t port, mixnet_packet* stp_packet
             update->path_length == currNode->path_len + 1){
             // printf("Node #%d, blocking my potential Parent, who is strictly worse \n", currNode->my_addr);
         currNode->neighbors_blocked[port] = false;
-    } else {
-        if (!currNode->neighbors_unused[port]){
-            currNode->neighbors_unused[port] = true;
-            currNode->stp_unused ++;
-        }
-        if (currNode->stp_unused == currNode->num_neighbors-1){
-            printf("Node #%d, [Converged Time:%llu] \n", currNode->my_addr, current_time_in_milliseconds());
-        }
+    } 
+    // LAB
+    if (currNode->stp_unused == currNode->num_neighbors){
+        printf("Node #%d, [Converged Time Taken:%lu] \n", currNode->my_addr, local_time());
     }
+
+    if (!currNode->neighbors_unused[port]){
+        currNode->neighbors_unused[port] = true;
+        currNode->stp_unused ++;
+    }
+    
         
     // free(update);
     return true;
@@ -736,20 +739,20 @@ void print_routing_header(struct Node *node, mixnet_packet_routing_header* heade
 
 
 void print_node(struct Node *node, bool verbose) {
-    printf("-----------------Printing Node [#%d]!------------------- \n", node->my_addr);
+    // printf("-----------------Printing Node [#%d]!------------------- \n", node->my_addr);
     printf("Root Addr: %d \n", node->root_addr);
-    printf("Path Len: %d \n", node->path_len);
-    printf("Node Addr: %d \n", node->my_addr);
-    printf("Next Hop: %d \n", node->next_hop);
-    printf("Num Neighbors %d \n", node->num_neighbors);
-    printf("Total Nodes in Graph %d \n", node->total_nodes);
-    printf("Neighbors List : \n");
+    // printf("Path Len: %d \n", node->path_len);
+    // printf("Node Addr: %d \n", node->my_addr);
+    // printf("Next Hop: %d \n", node->next_hop);
+    // printf("Num Neighbors %d \n", node->num_neighbors);
+    // printf("Total Nodes in Graph %d \n", node->total_nodes);
+    printf("Neighbors List : ");
     for (uint16_t i = 0; i < node->num_neighbors; i++) {
         const char* value = (node->neighbors_blocked[i]) ? "Yes" : "No";
-        printf("Neighbor Index #%d | Address: %d | Blocked: %s | \n", i, node->neighbors_addy[i], value);
+        printf("  #%d | Addr: %d | Block: %s | ", i, node->neighbors_addy[i], value);
     }
     if (verbose) print_graph(node);
-    printf("--------------Printing Node [#%d] Complete!--------------\n",node->my_addr);
+    // printf("--------------Printing Node [#%d] Complete!--------------\n",node->my_addr);
 }
 // Prints out graph of node
 void print_graph(struct Node* node) {
