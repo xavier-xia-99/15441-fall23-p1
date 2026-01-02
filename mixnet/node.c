@@ -39,7 +39,7 @@ struct neighbor {
 // Declare functions
 void receive_and_update(void *const handle, struct node *node);
 void send_packet(void *const handle, struct node *node, enum mixnet_packet_type_enum type, int16_t sender_port);
-bool receive_STP(struct node *currNode, int16_t i, mixnet_packet *stp_packet, void* const handle);
+bool receive_STP(struct node *currNode, int16_t i, mixnet_packet *stp_packet, void* const handle, uint32_t *start_time);
 // UTILS:
 void print_packet(mixnet_packet *packet);
 void print_node(struct node *node);
@@ -238,7 +238,7 @@ void run_node(void *const handle,
 
     //allocate chunk of memory
     mixnet_packet *packet_buffer =
-        (mixnet_packet *)malloc(sizeof(MAX_MIXNET_PACKET_SIZE));
+        (mixnet_packet *)malloc(MAX_MIXNET_PACKET_SIZE);
 
     if (packet_buffer == NULL) {
         exit(1);
@@ -269,6 +269,10 @@ void run_node(void *const handle,
                 node->root_addr = node->my_addr;
                 node->path_len = 0;
                 node->next_hop = node->my_addr;
+                // Reset all neighbors to unblocked when re-electing as root
+                for (int i = 0; i < node->num_neighbors; i++) {
+                    node->neighbors_blocked[i] = false;
+                }
                 send_packet(handle, node, PACKET_TYPE_STP, -1);
 
                 start_time = get_time_in_ms();
@@ -292,15 +296,14 @@ void run_node(void *const handle,
                 //
             switch (packet_buffer->type) {
                 case PACKET_TYPE_STP:
-                    receive_STP(node, port, packet_buffer, handle);
-                    // send_packet(handle, node, PACKET_TYPE_FLOOD, -1); // STP == -1
+                    receive_STP(node, port, packet_buffer, handle, &start_time);
                     break;
                 case PACKET_TYPE_FLOOD:
-                    // Ignore Flood packets from blocked ports
-                    if (port < node->num_neighbors && !node->neighbors_blocked[port]){
+                    // Accept FLOOD from user (port == num_neighbors) or from unblocked neighbors
+                    if (port == node->num_neighbors || 
+                        (port < node->num_neighbors && !node->neighbors_blocked[port])) {
                         send_packet(handle, node, PACKET_TYPE_FLOOD, port);
                     }
-                //only send to other neighbors
                     break;
                 }
             }
@@ -312,11 +315,11 @@ void run_node(void *const handle,
 }
 
 
-// Does not reach this function at all
-bool receive_STP(struct node * currNode, int16_t port, mixnet_packet* stp_packet, void *const handle){
+// Handles receiving an STP packet
+bool receive_STP(struct node * currNode, int16_t port, mixnet_packet* stp_packet, void *const handle, uint32_t *start_time){
     printf("\n[Received STP packet!]\n");
 
-    mixnet_packet_stp *update = (mixnet_packet_stp *)malloc(sizeof(mixnet_packet_stp)); // Free-d
+    mixnet_packet_stp *update = (mixnet_packet_stp *)malloc(sizeof(mixnet_packet_stp));
     
     memcpy((void *)update, (void *)stp_packet->payload,
            sizeof(mixnet_packet_stp));
@@ -329,11 +332,12 @@ bool receive_STP(struct node * currNode, int16_t port, mixnet_packet* stp_packet
         currNode->neighbors_blocked[port] = false; // unblock
     } else {
         // Received lower_root_address
-        if (update->root_address < currNode->root_addr) {
+        // Sanity check: don't adopt if path would be unreasonably long (indicates stale info)
+        // Maximum reasonable path in any spanning tree is num_neighbors * 2
+        uint16_t max_reasonable_path = currNode->num_neighbors * 2;
+        if (update->root_address < currNode->root_addr && 
+            update->path_length + 1 <= max_reasonable_path) {
                     printf("[1] Updating.. root[%d] address of because received lower ROOT addr \n", currNode->my_addr);
-                    // printf("before: root address: %u, path length: %u, next hop: %u \n", currNode->root_addr, currNode->path_len, currNode->next_hop);
-                    // printf("after: root address: %u, path length: %u, next hop: %u \n", update->root_address, update->path_length + 1, update->node_address);
-
                     currNode->root_addr = update->root_address;
                     currNode->path_len = update->path_length + 1;
                     currNode->next_hop = update->node_address;
@@ -343,9 +347,6 @@ bool receive_STP(struct node * currNode, int16_t port, mixnet_packet* stp_packet
         else if (update->root_address == currNode->root_addr &&
                  update->path_length + 1 < currNode->path_len) {
                     printf("[2] Updated root[%d] because better path\n", currNode->my_addr);
-                    // printf("before: root address: %u, path length: %u, next hop: %u \n", currNode->root_addr, currNode->path_len, currNode->next_hop);
-                    // printf("after: root address: %u, path length: %u, next hop: %u \n", update->root_address, update->path_length + 1, update->node_address);
-                    
                     currNode->path_len = update->path_length + 1;
                     currNode->next_hop = update->node_address;
                     state_changed = true;
@@ -355,52 +356,54 @@ bool receive_STP(struct node * currNode, int16_t port, mixnet_packet* stp_packet
                  update->path_length + 1 == currNode->path_len &&
                  update->node_address < currNode->next_hop) {
                     printf("[3] Updated root[%d] cause update's node is better for next hop\n", currNode->my_addr);
-                    // printf("before: root address: %u, path length: %u, next hop: %u \n", currNode->root_addr, currNode->path_len, currNode->next_hop);
-                    // printf("after: root address: %u, path length: %u, next hop: %u \n", update->root_address, update->path_length + 1, update->node_address);
                     currNode->next_hop = update->node_address;
                     state_changed = true;
         }
 
         if (state_changed){
-            // Reset All Nodes
-                // Reset all neighbours state to unblocked:
-            // Manually send to all neighbors for in a for loop except sender
-            for (int i = 0; i < currNode->num_neighbors; i++) {
-                mixnet_packet* stp_packet = initialize_STP_packet(currNode->root_addr, currNode->path_len, currNode->my_addr);
-                mixnet_send(handle, i, stp_packet);
-            }
-                // TODO : Send to all neighbors with new state except SENDER
+            // Reset all neighbors state to unblocked when tree changes
             for (int i = 0; i < currNode->num_neighbors; i++) {
                 currNode->neighbors_blocked[i] = false;
             }
-            // SEND THEM again
+            // Broadcast updated STP to all neighbors
+            for (int i = 0; i < currNode->num_neighbors; i++) {
+                mixnet_packet* new_stp_packet = initialize_STP_packet(currNode->root_addr, currNode->path_len, currNode->my_addr);
+                mixnet_send(handle, i, new_stp_packet);
+            }
+            // DON'T reset timer on state change - we need to verify the new root is alive
+            // Timer will be reset when we receive subsequent STP from our parent
         }
-
-        // Received from parent [Send update to everyone]
+        // No state change - handle blocking for siblings and non-parents
         else if (port != currNode->num_neighbors){
-            // Find and Block Siblings
             printf("[NO STATE CHANGE]! \n");
+            // Block siblings (same root, same path length)
             if (update->root_address == currNode->root_addr &&
                  update->path_length == currNode->path_len){
                     printf("Blocking siblings of root[%d] cause they are siblings\n", currNode->my_addr);
                     currNode->neighbors_blocked[port] = true;
             }
-        // For potential parent, i as a children, block my update[parent]
-        // same root as you and whose path length + 1== your path length
+            // Block non-parent neighbors (same root, could be parent, but not our chosen parent)
             else if (update->root_address == currNode->root_addr &&
                  update->path_length + 1 == currNode->path_len &&
                  update->node_address != currNode->next_hop){
                     printf("Node #%d, blocking my potential Parent, who is strictly worse \n", currNode->my_addr);
                     currNode->neighbors_blocked[port] = true;
             }
+            // Received valid STP from parent - reset reelection timer
+            else if (update->root_address == currNode->root_addr &&
+                     update->node_address == currNode->next_hop) {
+                printf("Received STP from parent, resetting timer\n");
+                if (start_time != NULL) {
+                    *start_time = get_time_in_ms();
+                }
+            }
+            // Received STP from neighbor with worse root - send our STP to help them converge
+            else if (update->root_address > currNode->root_addr) {
+                printf("Helping neighbor with worse root, sending our STP\n");
+                mixnet_packet* help_stp = initialize_STP_packet(currNode->root_addr, currNode->path_len, currNode->my_addr);
+                mixnet_send(handle, port, help_stp);
+            }
         }
-        /*
-        
-        BLOCKING LOGIC
-        1. siblings
-        2. not real parents
-        */
-        
     }
     free(update);
     printf("[End of STP packet!]\n\n");
@@ -418,7 +421,7 @@ void receive_and_update(void *const handle, struct node *currNode) {
     (void)handle;
 
     mixnet_packet *packet =
-        (mixnet_packet *)malloc(sizeof(MAX_MIXNET_PACKET_SIZE));
+        (mixnet_packet *)malloc(MAX_MIXNET_PACKET_SIZE);
     if (packet == NULL) {
         exit(1);
     }
@@ -435,7 +438,8 @@ void receive_and_update(void *const handle, struct node *currNode) {
         } else if (recv) {
                 switch (packet->type) {
                     case PACKET_TYPE_STP:
-                        receive_STP(currNode, i, packet, handle);
+                        // Note: receive_and_update is unused; passing NULL for start_time
+                        receive_STP(currNode, i, packet, handle, NULL);
 
                     break;
                     case PACKET_TYPE_FLOOD:

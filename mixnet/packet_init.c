@@ -40,22 +40,11 @@ mixnet_packet* initialize_STP_packet(mixnet_address root_address,
   stp_packet->total_size = 18;
   stp_packet->type = PACKET_TYPE_STP;
 
-  // Allocate memory for the mixnet_packet_stp payload
-  mixnet_packet_stp *stp_payload =
-      (mixnet_packet_stp *)malloc(sizeof(mixnet_packet_stp));
-  if (!stp_payload) {
-    // Handle allocation failure
-    free(stp_packet);
-    exit(1);
-  }
-  // Initialize mixnet_packet_stp fields
+  // Initialize mixnet_packet_stp payload directly in the packet's payload area
+  mixnet_packet_stp *stp_payload = (mixnet_packet_stp *)stp_packet->payload;
   stp_payload->root_address = root_address;
   stp_payload->path_length = path_length;
   stp_payload->node_address = node_address;
-
-  // Point packet's payload to stp_payload
-  memcpy((void *)stp_packet->payload, (void *)stp_payload,
-         sizeof(mixnet_packet_stp));
 
   return stp_packet;
 }
@@ -79,23 +68,12 @@ mixnet_packet* initialize_FLOOD_packet(mixnet_address root_address,
   stp_packet->total_size = 12;
   stp_packet->type = PACKET_TYPE_FLOOD;
 
-  // Allocate memory for the mixnet_packet_stp payload
-  mixnet_packet_stp *stp_payload =
-      (mixnet_packet_stp *)malloc(sizeof(mixnet_packet_stp));
-  if (!stp_payload) {
-    // Handle allocation failure
-    free(stp_packet);
-    exit(1);
-  }
-
-  // Initialize mixnet_packet_stp fields
+  // Initialize payload directly in the packet's payload area
+  // FLOOD packets don't need payload for STP, but we use same structure for consistency
+  mixnet_packet_stp *stp_payload = (mixnet_packet_stp *)stp_packet->payload;
   stp_payload->root_address = root_address;
   stp_payload->path_length = path_length;
   stp_payload->node_address = node_address;
-
-  // Point packet's payload to stp_payload
-  memcpy((void *)stp_packet->payload, (void *)stp_payload,
-         sizeof(mixnet_packet_stp));
   
   return stp_packet;
 }
